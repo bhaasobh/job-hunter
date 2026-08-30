@@ -1,6 +1,7 @@
 """SQLite persistence for jobs displayed by the local website."""
 
 import json
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -53,8 +54,77 @@ def _connect() -> sqlite3.Connection:
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS custom_companies (
+            company_id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            ats_type TEXT NOT NULL,
+            config_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
     cleanup_database_hygiene(connection)
     return connection
+
+
+def get_custom_companies() -> list[dict]:
+    """Return all user-added custom companies."""
+    with _connect() as connection:
+        rows = connection.execute(
+            "SELECT company_id, name, ats_type, config_json, created_at FROM custom_companies ORDER BY name ASC"
+        ).fetchall()
+    companies = []
+    for row in rows:
+        try:
+            config = json.loads(row["config_json"])
+        except Exception:
+            config = {}
+        companies.append({
+            "company_id": row["company_id"],
+            "name": row["name"],
+            "ats_type": row["ats_type"],
+            "config": config,
+            "created_at": row["created_at"],
+        })
+    return companies
+
+
+def add_custom_company(name: str, ats_type: str, config: dict) -> dict:
+    """Save a new custom company to SQLite and return the saved object."""
+    clean_name = str(name).strip()
+    clean_ats = str(ats_type).strip().lower()
+    company_id = re.sub(r"[^a-z0-9_]+", "_", clean_name.lower()).strip("_") or f"custom_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    now = datetime.now(timezone.utc).isoformat()
+    
+    with _connect() as connection:
+        connection.execute(
+            """
+            INSERT OR REPLACE INTO custom_companies
+            (company_id, name, ats_type, config_json, created_at)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (company_id, clean_name, clean_ats, json.dumps(config), now),
+        )
+    return {
+        "company_id": company_id,
+        "name": clean_name,
+        "ats_type": clean_ats,
+        "config": config,
+        "created_at": now,
+    }
+
+
+def delete_custom_company(company_id: str) -> bool:
+    """Delete a custom company by its ID."""
+    with _connect() as connection:
+        cursor = connection.execute(
+            "DELETE FROM custom_companies WHERE company_id = ?",
+            (company_id,),
+        )
+        return cursor.rowcount > 0
+
 
 
 def cleanup_database_hygiene(connection: sqlite3.Connection) -> None:

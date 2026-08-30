@@ -16,9 +16,12 @@ from pypdf import PdfReader
 from docx import Document
 
 from job_hunter_lib.config import OLLAMA_MODEL, OLLAMA_URL, SUPPORTED_COMPANIES, TELEGRAM_BOT_TOKEN
-from job_hunter_lib.jobs import extract_cv_keywords, fetch_jobs
+from job_hunter_lib.jobs import extract_cv_keywords, fetch_jobs, test_company_fetcher
 from job_hunter_lib.local_database import (
+    add_custom_company,
+    delete_custom_company,
     get_all_jobs,
+    get_custom_companies,
     get_unsent_new_jobs,
     mark_jobs_sent_to_telegram,
     save_job_ai_analysis,
@@ -541,6 +544,77 @@ def set_job_status(job_id):
     if job is None:
         return jsonify({"error": "Job not found"}), 404
     return jsonify({"job": job})
+
+
+@app.get("/api/companies")
+def get_companies():
+    custom = get_custom_companies()
+    custom_names = {c["name"].lower() for c in custom}
+    builtin = [
+        {"name": c, "is_custom": False, "ats_type": "builtin", "company_id": c}
+        for c in SUPPORTED_COMPANIES
+        if c.lower() not in custom_names
+    ]
+    all_companies = [
+        {"name": c["name"], "is_custom": True, "ats_type": c["ats_type"], "company_id": c["company_id"], "config": c.get("config", {})}
+        for c in custom
+    ] + builtin
+    all_companies.sort(key=lambda x: x["name"].lower())
+    return jsonify({"companies": all_companies, "count": len(all_companies)})
+
+
+@app.get("/api/companies/custom")
+def list_custom_companies():
+    return jsonify({"custom_companies": get_custom_companies()})
+
+
+@app.post("/api/companies/custom")
+def create_custom_company():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip()
+    ats_type = str(data.get("ats_type") or "").strip().lower()
+    config = data.get("config") if isinstance(data.get("config"), dict) else {}
+    if not name:
+        return jsonify({"error": "Company name is required."}), 400
+    if ats_type not in {"greenhouse", "workday", "comeet", "smartrecruiters", "ashby", "career_page"}:
+        return jsonify({"error": "Invalid ATS type. Choose Greenhouse, Workday, Comeet, SmartRecruiters, Ashby, or Career Website."}), 400
+    
+    saved = add_custom_company(name=name, ats_type=ats_type, config=config)
+    return jsonify({"company": saved, "message": f"Successfully added {name}!"}), 201
+
+
+@app.delete("/api/companies/custom/<company_id>")
+def remove_custom_company(company_id):
+    deleted = delete_custom_company(company_id)
+    if not deleted:
+        return jsonify({"error": "Custom company not found."}), 404
+    return jsonify({"message": "Custom company deleted successfully."})
+
+
+@app.post("/api/companies/test")
+def test_company():
+    data = request.get_json(silent=True) or {}
+    name = str(data.get("name") or "").strip() or "TestCompany"
+    ats_type = str(data.get("ats_type") or "").strip().lower()
+    config = data.get("config") if isinstance(data.get("config"), dict) else {}
+    if not ats_type:
+        return jsonify({"error": "ATS type is required."}), 400
+    
+    try:
+        jobs, error = asyncio.run(test_company_fetcher(ats_type=ats_type, name=name, config=config))
+    except Exception as exc:
+        return jsonify({"success": False, "jobs_count": 0, "error": str(exc)}), 200
+
+    if error:
+        return jsonify({"success": False, "jobs_count": 0, "error": error}), 200
+    
+    return jsonify({
+        "success": True,
+        "jobs_count": len(jobs),
+        "jobs_preview": jobs[:5],
+        "message": f"Successfully fetched {len(jobs)} active jobs for {name}!",
+    })
+
 
 
 if __name__ == "__main__":

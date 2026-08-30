@@ -84,3 +84,78 @@ def test_incremental_batch_saving_does_not_double_count(temp_db):
     assert all_jobs["j2"]["appearance_count"] == 1
 
 
+def test_custom_companies_crud(temp_db):
+    # Initially empty
+    assert local_database.get_custom_companies() == []
+
+    # Add company
+    saved = local_database.add_custom_company(
+        name="Stripe",
+        ats_type="greenhouse",
+        config={"board_token": "stripe"},
+    )
+    assert saved["name"] == "Stripe"
+    assert saved["ats_type"] == "greenhouse"
+    assert saved["config"]["board_token"] == "stripe"
+
+    # Fetch list
+    companies = local_database.get_custom_companies()
+    assert len(companies) == 1
+    assert companies[0]["company_id"] == "stripe"
+    assert companies[0]["name"] == "Stripe"
+    assert companies[0]["config"]["board_token"] == "stripe"
+
+    # Add second company
+    local_database.add_custom_company(
+        name="Lemonade",
+        ats_type="greenhouse",
+        config={"board_token": "lemonade"},
+    )
+    companies = local_database.get_custom_companies()
+    assert len(companies) == 2
+
+    # Delete company
+    deleted = local_database.delete_custom_company("stripe")
+    assert deleted is True
+    companies = local_database.get_custom_companies()
+    assert len(companies) == 1
+    assert companies[0]["company_id"] == "lemonade"
+
+
+def test_web_app_custom_company_endpoints(temp_db):
+    import web_app
+    with web_app.app.test_client() as client:
+        # GET /api/companies/custom (empty)
+        res = client.get("/api/companies/custom")
+        assert res.status_code == 200
+        assert res.get_json()["custom_companies"] == []
+
+        # POST /api/companies/custom
+        res = client.post("/api/companies/custom", json={
+            "name": "Acme Tech",
+            "ats_type": "greenhouse",
+            "config": {"board_token": "acmetech"},
+        })
+        assert res.status_code == 201
+        data = res.get_json()
+        assert data["company"]["name"] == "Acme Tech"
+        assert data["company"]["company_id"] == "acme_tech"
+
+        # GET /api/companies (should include Acme Tech)
+        res = client.get("/api/companies")
+        assert res.status_code == 200
+        comp_names = [c["name"] for c in res.get_json()["companies"]]
+        assert "Acme Tech" in comp_names
+
+        # DELETE /api/companies/custom/acme_tech
+        res = client.delete("/api/companies/custom/acme_tech")
+        assert res.status_code == 200
+        assert res.get_json()["message"] == "Custom company deleted successfully."
+
+        # GET /api/companies/custom (empty again)
+        res = client.get("/api/companies/custom")
+        assert res.get_json()["custom_companies"] == []
+
+
+
+

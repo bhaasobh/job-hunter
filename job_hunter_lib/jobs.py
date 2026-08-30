@@ -37,11 +37,10 @@ from job_hunter_lib.fetchers import (
     fetch_bank_jobs,
     fetch_government_jobs,
     fetch_big_tech_jobs,
-    fetch_career_page_jobs,
-    format_source_error,
     ACTIVE_EXCLUDED_KEYWORDS,
     TITLE_EXCLUDED_KEYWORDS,
 )
+from job_hunter_lib.local_database import get_custom_companies
 
 CV_STOPWORDS = {
     "the", "and", "for", "with", "that", "this", "from", "your", "you",
@@ -259,6 +258,79 @@ async def fetch_jobs(
                     lambda source=source, fetcher=fetcher: fetcher(client, source, notify=notify),
                 ))
 
+        try:
+            custom_companies = get_custom_companies()
+        except Exception:
+            custom_companies = []
+
+        for custom in custom_companies:
+            ats = str(custom.get("ats_type", "")).strip().lower()
+            name = str(custom.get("name", "")).strip()
+            cfg = custom.get("config", {})
+            if not name:
+                continue
+            if ats == "greenhouse":
+                token = str(cfg.get("board_token") or name).strip()
+                source_calls.append((
+                    name,
+                    lambda token=token, name=name: fetch_greenhouse_jobs(client, token, notify=notify, company_name=name),
+                ))
+            elif ats == "workday":
+                wd_source = {
+                    "company": name,
+                    "base_url": cfg.get("base_url", ""),
+                    "payload": cfg.get("payload") or {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": cfg.get("search_text", "Israel")},
+                }
+                source_calls.append((
+                    name,
+                    lambda source=wd_source: fetch_workday_jobs(client, source, notify=notify),
+                ))
+            elif ats == "comeet":
+                cm_source = {
+                    "company": name,
+                    "uid": cfg.get("uid", ""),
+                    "token": cfg.get("token", ""),
+                    "assume_israel": cfg.get("assume_israel", True),
+                }
+                source_calls.append((
+                    name,
+                    lambda source=cm_source: fetch_comeet_jobs(client, source, notify=notify),
+                ))
+            elif ats == "smartrecruiters":
+                sr_source = {
+                    "company": name,
+                    "id": cfg.get("id", name),
+                    "assume_israel": cfg.get("assume_israel", True),
+                }
+                source_calls.append((
+                    name,
+                    lambda source=sr_source: fetch_smartrecruiters_jobs(client, source, notify=notify),
+                ))
+            elif ats == "ashby":
+                ab_source = {
+                    "company": name,
+                    "board_name": cfg.get("board_name", name),
+                    "assume_israel": cfg.get("assume_israel", True),
+                }
+                source_calls.append((
+                    name,
+                    lambda source=ab_source: fetch_ashby_jobs(client, source, notify=notify),
+                ))
+            elif ats in {"career_page", "website", "html"}:
+                markers = cfg.get("path_markers")
+                if isinstance(markers, str):
+                    markers = [m.strip() for m in markers.split(",") if m.strip()]
+                cp_source = {
+                    "company": name,
+                    "url": cfg.get("url", ""),
+                    "path_markers": markers or ["/job/", "/jobs/", "/position/", "/careers/"],
+                    "assume_israel": cfg.get("assume_israel", True),
+                }
+                source_calls.append((
+                    name,
+                    lambda source=cp_source: fetch_career_page_jobs(client, source, notify=notify),
+                ))
+
         if selected_companies:
             source_calls = [
                 source_call for source_call in source_calls
@@ -313,3 +385,62 @@ async def fetch_jobs(
     if return_stats:
         return jobs, sent_count
     return jobs
+
+
+async def test_company_fetcher(ats_type: str, name: str, config: dict) -> tuple[list[dict], str]:
+    """Test fetching jobs for a company configuration and return (jobs_list, error_message)."""
+    ats = str(ats_type).strip().lower()
+    clean_name = str(name).strip() or "TestCompany"
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            if ats == "greenhouse":
+                token = str(config.get("board_token") or clean_name).strip()
+                jobs, _ = await fetch_greenhouse_jobs(client, token, notify=False, company_name=clean_name)
+            elif ats == "workday":
+                wd_source = {
+                    "company": clean_name,
+                    "base_url": config.get("base_url", ""),
+                    "payload": config.get("payload") or {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": config.get("search_text", "Israel")},
+                }
+                jobs, _ = await fetch_workday_jobs(client, wd_source, notify=False)
+            elif ats == "comeet":
+                cm_source = {
+                    "company": clean_name,
+                    "uid": config.get("uid", ""),
+                    "token": config.get("token", ""),
+                    "assume_israel": config.get("assume_israel", True),
+                }
+                jobs, _ = await fetch_comeet_jobs(client, cm_source, notify=False)
+            elif ats == "smartrecruiters":
+                sr_source = {
+                    "company": clean_name,
+                    "id": config.get("id", clean_name),
+                    "assume_israel": config.get("assume_israel", True),
+                }
+                jobs, _ = await fetch_smartrecruiters_jobs(client, sr_source, notify=False)
+            elif ats == "ashby":
+                ab_source = {
+                    "company": clean_name,
+                    "board_name": config.get("board_name", clean_name),
+                    "assume_israel": config.get("assume_israel", True),
+                }
+                jobs, _ = await fetch_ashby_jobs(client, ab_source, notify=False)
+            elif ats in {"career_page", "website", "html"}:
+                markers = config.get("path_markers")
+                if isinstance(markers, str):
+                    markers = [m.strip() for m in markers.split(",") if m.strip()]
+                cp_source = {
+                    "company": clean_name,
+                    "url": config.get("url", ""),
+                    "path_markers": markers or ["/job/", "/jobs/", "/position/", "/careers/"],
+                    "assume_israel": config.get("assume_israel", True),
+                }
+                jobs, _ = await fetch_career_page_jobs(client, cp_source, notify=False)
+            else:
+                return [], f"Unsupported ATS type: {ats_type}"
+
+            enriched = [extract_job_sections(j) for j in jobs]
+            return enriched, ""
+    except Exception as exc:
+        return [], str(exc)
+

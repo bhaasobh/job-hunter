@@ -10,6 +10,7 @@ const pageInfo = {
   dashboard: ["Dashboard", "Your job search at a glance"],
   jobs: ["Jobs", "Browse and manage matching opportunities"],
   companies: ["Companies", "Companies represented in your job results"],
+  "add-company": ["Add Company", "Add new monitored companies and career feeds"],
   "cv-profile": ["CV & Profile", "Keep your profile ready for better matches"],
   settings: ["Settings", "Manage your job search preferences"],
 };
@@ -48,6 +49,7 @@ function showPage(name) {
   $("searchButton").hidden = name !== "jobs";
   if (name === "jobs") renderJobs();
   if (name === "companies") renderCompanies();
+  if (name === "add-company") loadCustomCompanies();
 }
 
 function populateSelect(id, values, placeholder) {
@@ -431,6 +433,191 @@ function openOnboarding() {
   draw();
 }
 
+function getSelectedAtsType() {
+  return $("newCompanyAts")?.value || "greenhouse";
+}
+
+function updateAtsFieldsVisibility() {
+  const selected = getSelectedAtsType();
+  ["greenhouse", "workday", "comeet", "smartrecruiters", "ashby", "career_page"].forEach((type) => {
+    const el = $(`atsFields-${type}`);
+    if (el) el.hidden = type !== selected;
+  });
+}
+
+function extractCompanyFormData() {
+  const name = $("newCompanyName").value.trim();
+  const ats_type = getSelectedAtsType();
+  const config = {};
+
+  if (ats_type === "greenhouse") {
+    let token = $("ghBoardToken").value.trim();
+    if (token.includes("greenhouse.io/")) {
+      const match = token.match(/greenhouse\.io\/(?:v1\/boards\/)?([^/?#]+)/i);
+      if (match) token = match[1];
+    }
+    config.board_token = token || name.toLowerCase().replace(/\s+/g, "");
+  } else if (ats_type === "workday") {
+    config.base_url = $("wdBaseUrl").value.trim();
+    config.search_text = $("wdSearchText").value.trim() || "Israel";
+  } else if (ats_type === "comeet") {
+    config.uid = $("cmUid").value.trim();
+    config.token = $("cmToken").value.trim();
+    config.assume_israel = $("cmAssumeIsrael").checked;
+  } else if (ats_type === "smartrecruiters") {
+    let id = $("srId").value.trim();
+    if (id.includes("smartrecruiters.com/")) {
+      const match = id.match(/smartrecruiters\.com\/([^/?#]+)/i);
+      if (match) id = match[1];
+    }
+    config.id = id || name;
+    config.assume_israel = $("srAssumeIsrael").checked;
+  } else if (ats_type === "ashby") {
+    let handle = $("abBoardName").value.trim();
+    if (handle.includes("ashbyhq.com/")) {
+      const match = handle.match(/ashbyhq\.com\/([^/?#]+)/i);
+      if (match) handle = match[1];
+    }
+    config.board_name = handle || name;
+    config.assume_israel = $("abAssumeIsrael").checked;
+  } else if (ats_type === "career_page") {
+    config.url = $("cpUrl").value.trim();
+    config.path_markers = $("cpMarkers").value.split(",").map((m) => m.trim()).filter(Boolean);
+    config.assume_israel = $("cpAssumeIsrael").checked;
+  }
+  return { name, ats_type, config };
+}
+
+async function testCompanyConnection() {
+  const data = extractCompanyFormData();
+  if (!data.name) {
+    toast("Please enter a company name first.", true);
+    $("newCompanyName").focus();
+    return;
+  }
+  const resultBox = $("companyTestResult");
+  resultBox.hidden = false;
+  resultBox.className = "test-result-box is-loading";
+  resultBox.innerHTML = `<h4>Testing connection to ${escapeHtml(data.name)} (${escapeHtml(data.ats_type)})…</h4><p>Contacting job portal and fetching live openings…</p>`;
+
+  try {
+    const response = await fetch("/api/companies/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (result.success) {
+      resultBox.className = "test-result-box is-success";
+      let previewHtml = "";
+      if (result.jobs_preview && result.jobs_preview.length) {
+        previewHtml = `<ul class="test-preview-list">${result.jobs_preview.map((j) => `<li><strong>${escapeHtml(j.title)}</strong> (${escapeHtml(j.location || "Israel")})</li>`).join("")}</ul>`;
+      }
+      resultBox.innerHTML = `<h4>✓ Success: Found ${result.jobs_count} live jobs!</h4><p>${escapeHtml(result.message)}</p>${previewHtml}`;
+    } else {
+      resultBox.className = "test-result-box is-error";
+      resultBox.innerHTML = `<h4>✕ Connection Failed</h4><p>${escapeHtml(result.error || "Could not fetch jobs from this endpoint. Check the URL or board token.")}</p>`;
+    }
+  } catch (err) {
+    resultBox.className = "test-result-box is-error";
+    resultBox.innerHTML = `<h4>✕ Error</h4><p>${escapeHtml(err.message)}</p>`;
+  }
+}
+
+async function saveCompany(event) {
+  event.preventDefault();
+  const data = extractCompanyFormData();
+  if (!data.name) {
+    toast("Please enter a company name.", true);
+    return;
+  }
+  try {
+    const response = await fetch("/api/companies/custom", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Could not save company");
+    toast(`✓ ${data.name} saved successfully!`);
+    $("addCompanyForm").reset();
+    updateAtsFieldsVisibility();
+    $("companyTestResult").hidden = true;
+    await loadCustomCompanies();
+    await loadJobs();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function loadCustomCompanies() {
+  const container = $("customCompaniesTableContainer");
+  const badge = $("customCompanyCountBadge");
+  if (!container) return;
+  try {
+    const response = await fetch("/api/companies/custom");
+    const data = await response.json();
+    const list = data.custom_companies || [];
+    if (badge) badge.textContent = `${list.length} custom`;
+    if (!list.length) {
+      container.innerHTML = `<div class="empty-state" style="padding:24px 0"><p>No custom companies added yet. Use the form above to add your first!</p></div>`;
+      return;
+    }
+    container.innerHTML = `
+      <table class="custom-companies-table">
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Platform (ATS)</th>
+            <th>Configuration</th>
+            <th>Added On</th>
+            <th style="text-align:right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${list.map((c) => {
+            const configSummary = Object.entries(c.config || {})
+              .map(([k, v]) => `<strong>${escapeHtml(k)}:</strong> ${escapeHtml(Array.isArray(v) ? v.join(", ") : String(v))}`)
+              .join(" | ");
+            return `
+              <tr>
+                <td><strong>${escapeHtml(c.name)}</strong></td>
+                <td><span class="ats-badge">${escapeHtml(c.ats_type)}</span></td>
+                <td style="color:#64748b;font-size:12px">${configSummary || "Default config"}</td>
+                <td style="color:#64748b;font-size:12px">${new Date(c.created_at).toLocaleDateString()}</td>
+                <td style="text-align:right">
+                  <button class="secondary-btn danger-hover delete-custom-company" data-id="${escapeHtml(c.company_id)}" data-name="${escapeHtml(c.name)}" style="padding:4px 9px;min-height:30px;font-size:12px">
+                    🗑️ Remove
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
+    container.querySelectorAll(".delete-custom-company").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const name = btn.dataset.name;
+        if (!confirm(`Are you sure you want to remove ${name}?`)) return;
+        try {
+          const res = await fetch(`/api/companies/custom/${encodeURIComponent(id)}`, { method: "DELETE" });
+          const resData = await res.json();
+          if (!res.ok) throw new Error(resData.error || "Delete failed");
+          toast(`${name} removed.`);
+          await loadCustomCompanies();
+          await loadJobs();
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+    });
+  } catch (err) {
+    container.innerHTML = `<p style="color:#b91c1c">Error loading custom companies: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
 document.querySelectorAll(".nav-item").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.page)));
 ["keywordFilter", "statusFilter", "companyJobFilter", "locationJobFilter", "remoteFilter"].forEach((id) => $(id).addEventListener(id === "keywordFilter" ? "input" : "change", renderJobs));
 $("jobSort").addEventListener("change", () => { state.sortKey = $("jobSort").value; state.sortDirection = ["newest", "match", "seen"].includes(state.sortKey) ? "desc" : "asc"; renderJobs(); });
@@ -440,6 +627,13 @@ if ($("jobsStartScanBtn")) $("jobsStartScanBtn").addEventListener("click", start
 document.querySelectorAll(".action-card").forEach((button) => button.addEventListener("click", () => showPage({ "view-jobs": "jobs", "upload-cv": "cv-profile", "manage-companies": "companies", "view-settings": "settings" }[button.dataset.action])));
 $("companySearch").addEventListener("input", renderCompanies);
 $("scanAllBtn").addEventListener("click", startScan);
+if ($("goToAddCompanyBtn")) $("goToAddCompanyBtn").addEventListener("click", () => showPage("add-company"));
+if ($("emptyAddCompanyBtn")) $("emptyAddCompanyBtn").addEventListener("click", () => showPage("add-company"));
+
+if ($("newCompanyAts")) $("newCompanyAts").addEventListener("change", updateAtsFieldsVisibility);
+if ($("testCompanyBtn")) $("testCompanyBtn").addEventListener("click", testCompanyConnection);
+if ($("addCompanyForm")) $("addCompanyForm").addEventListener("submit", saveCompany);
+
 $("uploadArea").addEventListener("click", () => $("cvFileInput").click());
 $("cvFileInput").addEventListener("change", uploadCv);
 $("replaceCvBtn").addEventListener("click", () => $("cvFileInput").click());
@@ -457,4 +651,6 @@ $("skipSetupBtn").addEventListener("click", () => { $("emptyState").hidden = tru
 loadLocalState();
 showPage("dashboard");
 loadJobs();
+loadCustomCompanies();
 if (!localStorage.getItem(ONBOARDING_KEY)) openOnboarding();
+
