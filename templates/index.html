@@ -79,6 +79,7 @@
           <p id="pageSubtitle" class="subtitle"></p>
         </div>
         <div class="header-right">
+          <button id="headerAddCompanyBtn" class="secondary-btn">➕ Add Company</button>
           <button id="searchButton" class="primary-btn" hidden>Search Jobs Now</button>
         </div>
       </header>
@@ -195,13 +196,17 @@
                   <span class="action-icon">💼</span>
                   <span class="action-label">Browse Jobs</span>
                 </button>
-                <button class="action-card" data-action="upload-cv">
-                  <span class="action-icon">📄</span>
-                  <span class="action-label">Upload CV</span>
+                <button class="action-card" data-action="add-company">
+                  <span class="action-icon">➕</span>
+                  <span class="action-label">Add Company</span>
                 </button>
                 <button class="action-card" data-action="manage-companies">
                   <span class="action-icon">🏢</span>
-                  <span class="action-label">Manage Companies</span>
+                  <span class="action-label">Monitored Companies</span>
+                </button>
+                <button class="action-card" data-action="upload-cv">
+                  <span class="action-icon">📄</span>
+                  <span class="action-label">Upload CV</span>
                 </button>
                 <button class="action-card" data-action="view-settings">
                   <span class="action-icon">⚙️</span>
@@ -446,7 +451,6 @@
                     <div class="form-group">
                       <label for="cpMarkers">Job URL Path Markers (comma-separated)</label>
                       <input id="cpMarkers" type="text" placeholder="/job/, /jobs/, /position/, /positions/, /careers/" value="/job/, /jobs/, /position/, /positions/">
-                    </div>
                     <label class="checkbox-label">
                       <input id="cpAssumeIsrael" type="checkbox" checked>
                       <span>Assume Israel location if not specified in text</span>

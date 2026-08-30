@@ -627,12 +627,12 @@ document.querySelectorAll(".nav-item").forEach((button) => button.addEventListen
 $("jobSort").addEventListener("change", () => { state.sortKey = $("jobSort").value; state.sortDirection = ["newest", "match", "seen"].includes(state.sortKey) ? "desc" : "asc"; renderJobs(); });
 $("searchButton").addEventListener("click", startScan);
 $("startScanBtn").addEventListener("click", startScan);
-if ($("jobsStartScanBtn")) $("jobsStartScanBtn").addEventListener("click", startScan);
-document.querySelectorAll(".action-card").forEach((button) => button.addEventListener("click", () => showPage({ "view-jobs": "jobs", "upload-cv": "cv-profile", "manage-companies": "companies", "view-settings": "settings" }[button.dataset.action])));
+document.querySelectorAll(".action-card").forEach((button) => button.addEventListener("click", () => showPage({ "view-jobs": "jobs", "add-company": "add-company", "upload-cv": "cv-profile", "manage-companies": "companies", "view-settings": "settings" }[button.dataset.action])));
 $("companySearch").addEventListener("input", renderCompanies);
 $("scanAllBtn").addEventListener("click", startScan);
 if ($("goToAddCompanyBtn")) $("goToAddCompanyBtn").addEventListener("click", () => showPage("add-company"));
 if ($("emptyAddCompanyBtn")) $("emptyAddCompanyBtn").addEventListener("click", () => showPage("add-company"));
+if ($("headerAddCompanyBtn")) $("headerAddCompanyBtn").addEventListener("click", () => showPage("add-company"));
 
 if ($("newCompanyAts")) $("newCompanyAts").addEventListener("change", updateAtsFieldsVisibility);
 if ($("testCompanyBtn")) $("testCompanyBtn").addEventListener("click", testCompanyConnection);
