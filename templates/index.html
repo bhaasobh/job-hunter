@@ -49,10 +49,6 @@
           <span class="icon">🏢</span>
           <span class="label">Companies</span>
         </button>
-        <button class="nav-item" data-page="add-company">
-          <span class="icon">➕</span>
-          <span class="label">Add Company</span>
-        </button>
         <button class="nav-item" data-page="cv-profile">
           <span class="icon">👤</span>
           <span class="label">CV & Profile</span>
@@ -308,7 +304,6 @@
           <div class="page-content">
             <div class="companies-controls">
               <input id="companySearch" class="filter-input" type="search" placeholder="Search companies…">
-              <button id="goToAddCompanyBtn" class="secondary-btn">➕ Add Company</button>
               <button id="scanAllBtn" class="primary-btn">Scan All</button>
             </div>
 
@@ -322,160 +317,7 @@
             <div id="noCompaniesState" class="empty-state" hidden>
               <div class="empty-icon">🏢</div>
               <h3>No companies monitored yet</h3>
-              <p>Add custom companies to expand your job search</p>
-              <button id="emptyAddCompanyBtn" class="primary-btn">➕ Add First Company</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ADD COMPANY PAGE -->
-        <div id="page-add-company" class="page" data-page="add-company" hidden>
-          <div class="page-content">
-            <div class="add-company-container">
-              <!-- Form Card -->
-              <section class="profile-section">
-                <h3>➕ Add Monitored Company</h3>
-                <p class="section-hint">Add any company using Greenhouse, Workday, Comeet, SmartRecruiters, Ashby, or a direct career website. Saved companies are permanently stored locally in SQLite and included in every scan.</p>
-
-                <form id="addCompanyForm" class="add-company-form">
-                  <div class="form-row">
-                    <div class="form-group flex-1">
-                      <label for="newCompanyName">Company Name *</label>
-                      <input id="newCompanyName" type="text" placeholder="e.g. Stripe, Lemonade, Monday" required>
-                    </div>
-
-                    <div class="form-group flex-1">
-                      <label for="newCompanyAts">ATS / Platform Type *</label>
-                      <select id="newCompanyAts">
-                        <option value="auto" selected>✨ Unknown / Auto-Detect (Just paste Careers URL)</option>
-                        <option value="greenhouse">Greenhouse (Job Boards)</option>
-                        <option value="workday">Workday (CXS Portal)</option>
-                        <option value="comeet">Comeet</option>
-                        <option value="smartrecruiters">SmartRecruiters</option>
-                        <option value="ashby">Ashby</option>
-                        <option value="career_page">Career Website / HTML Scraper</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <!-- Dynamic ATS Config Fields -->
-                  <!-- Auto-Detect Fields (Default) -->
-                  <div id="atsFields-auto" class="ats-fields-group">
-                    <div class="form-group">
-                      <label for="autoCareersUrl">Career Page or Job Board Link</label>
-                      <input id="autoCareersUrl" type="url" placeholder="e.g. https://www.company.com/careers or https://company.wd1.myworkdayjobs.com/...">
-                      <p class="field-hint">Paste any career page or job listing link. We'll automatically identify the ATS platform (Greenhouse, Workday, Comeet, SmartRecruiters, Ashby, etc.) and configure the scraper.</p>
-                    </div>
-                  </div>
-
-                  <!-- Greenhouse Fields -->
-                  <div id="atsFields-greenhouse" class="ats-fields-group" hidden>
-                    <div class="form-group">
-                      <label for="ghBoardToken">Greenhouse Board Token or URL *</label>
-                      <input id="ghBoardToken" type="text" placeholder="e.g. stripe or https://job-boards.greenhouse.io/stripe">
-                      <p class="field-hint">The board name in boards.greenhouse.io/{board_name}</p>
-                    </div>
-                  </div>
-
-                  <!-- Workday Fields -->
-                  <div id="atsFields-workday" class="ats-fields-group" hidden>
-                    <div class="form-group">
-                      <label for="wdBaseUrl">Workday CXS Jobs URL *</label>
-                      <input id="wdBaseUrl" type="url" placeholder="e.g. https://company.wd1.myworkdayjobs.com/wday/cxs/company/Site/jobs">
-                      <p class="field-hint">The Workday /wday/cxs/.../jobs endpoint found in browser Network tab</p>
-                    </div>
-                    <div class="form-group">
-                      <label for="wdSearchText">Location / Search Filter</label>
-                      <input id="wdSearchText" type="text" placeholder="e.g. Israel" value="Israel">
-                    </div>
-                  </div>
-
-                  <!-- Comeet Fields -->
-                  <div id="atsFields-comeet" class="ats-fields-group" hidden>
-                    <div class="form-row">
-                      <div class="form-group flex-1">
-                        <label for="cmUid">Company UID *</label>
-                        <input id="cmUid" type="text" placeholder="e.g. 12.345">
-                      </div>
-                      <div class="form-group flex-1">
-                        <label for="cmToken">Token *</label>
-                        <input id="cmToken" type="text" placeholder="e.g. AB123456789">
-                      </div>
-                    </div>
-                    <label class="checkbox-label">
-                      <input id="cmAssumeIsrael" type="checkbox" checked>
-                      <span>Filter for Israel openings only</span>
-                    </label>
-                  </div>
-
-                  <!-- SmartRecruiters Fields -->
-                  <div id="atsFields-smartrecruiters" class="ats-fields-group" hidden>
-                    <div class="form-group">
-                      <label for="srId">Company Identifier *</label>
-                      <input id="srId" type="text" placeholder="e.g. CheckPoint or company slug">
-                      <p class="field-hint">The identifier in jobs.smartrecruiters.com/{identifier}</p>
-                    </div>
-                    <label class="checkbox-label">
-                      <input id="srAssumeIsrael" type="checkbox" checked>
-                      <span>Filter for Israel openings only</span>
-                    </label>
-                  </div>
-
-                  <!-- Ashby Fields -->
-                  <div id="atsFields-ashby" class="ats-fields-group" hidden>
-                    <div class="form-group">
-                      <label for="abBoardName">Ashby Board Name / Handle *</label>
-                      <input id="abBoardName" type="text" placeholder="e.g. snyk or jobs.ashbyhq.com/{board_name}">
-                    </div>
-                    <label class="checkbox-label">
-                      <input id="abAssumeIsrael" type="checkbox" checked>
-                      <span>Filter for Israel openings only</span>
-                    </label>
-                  </div>
-
-                  <!-- Career Page Fields -->
-                  <div id="atsFields-career_page" class="ats-fields-group" hidden>
-                    <div class="form-group">
-                      <label for="cpUrl">Careers Page URL *</label>
-                      <input id="cpUrl" type="url" placeholder="e.g. https://www.company.com/careers">
-                    </div>
-                    <div class="form-group">
-                      <label for="cpMarkers">Job URL Path Markers (comma-separated)</label>
-                      <input id="cpMarkers" type="text" placeholder="/job/, /jobs/, /position/, /positions/, /careers/" value="/job/, /jobs/, /position/, /positions/">
-                    </div>
-                    <label class="checkbox-label">
-                      <input id="cpAssumeIsrael" type="checkbox" checked>
-                      <span>Assume Israel location if not specified in text</span>
-                    </label>
-                  </div>
-
-                  <!-- Action Buttons -->
-                  <div class="form-actions-row">
-                    <button id="testCompanyBtn" class="secondary-btn" type="button">
-                      🔍 Test Connection & Preview
-                    </button>
-                    <button id="saveCompanyBtn" class="primary-btn" type="submit">
-                      💾 Save Company
-                    </button>
-                  </div>
-                </form>
-
-                <!-- Live Test Result Banner -->
-                <div id="companyTestResult" class="test-result-box" hidden></div>
-              </section>
-
-              <!-- Custom Companies List -->
-              <section class="profile-section custom-companies-section">
-                <div class="section-header-flex">
-                  <h3>🏢 Your Custom Added Companies</h3>
-                  <span id="customCompanyCountBadge" class="badge-count">0 custom</span>
-                </div>
-                <div id="customCompaniesTableContainer" class="table-container">
-                  <div class="loading-state">
-                    <p>Loading custom companies…</p>
-                  </div>
-                </div>
-              </section>
+              <p>Add companies to start scanning</p>
             </div>
           </div>
         </div>
