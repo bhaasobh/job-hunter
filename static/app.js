@@ -434,12 +434,12 @@ function openOnboarding() {
 }
 
 function getSelectedAtsType() {
-  return $("newCompanyAts")?.value || "greenhouse";
+  return $("newCompanyAts")?.value || "auto";
 }
 
 function updateAtsFieldsVisibility() {
   const selected = getSelectedAtsType();
-  ["greenhouse", "workday", "comeet", "smartrecruiters", "ashby", "career_page"].forEach((type) => {
+  ["auto", "greenhouse", "workday", "comeet", "smartrecruiters", "ashby", "career_page"].forEach((type) => {
     const el = $(`atsFields-${type}`);
     if (el) el.hidden = type !== selected;
   });
@@ -450,7 +450,9 @@ function extractCompanyFormData() {
   const ats_type = getSelectedAtsType();
   const config = {};
 
-  if (ats_type === "greenhouse") {
+  if (ats_type === "auto") {
+    config.url = ($("autoCareersUrl")?.value || "").trim();
+  } else if (ats_type === "greenhouse") {
     let token = $("ghBoardToken").value.trim();
     if (token.includes("greenhouse.io/")) {
       const match = token.match(/greenhouse\.io\/(?:v1\/boards\/)?([^/?#]+)/i);
@@ -498,7 +500,7 @@ async function testCompanyConnection() {
   const resultBox = $("companyTestResult");
   resultBox.hidden = false;
   resultBox.className = "test-result-box is-loading";
-  resultBox.innerHTML = `<h4>Testing connection to ${escapeHtml(data.name)} (${escapeHtml(data.ats_type)})…</h4><p>Contacting job portal and fetching live openings…</p>`;
+  resultBox.innerHTML = `<h4>🔍 Analyzing & Testing Connection…</h4><p>Auto-detecting platform for ${escapeHtml(data.name)} and fetching active jobs…</p>`;
 
   try {
     const response = await fetch("/api/companies/test", {
@@ -513,10 +515,12 @@ async function testCompanyConnection() {
       if (result.jobs_preview && result.jobs_preview.length) {
         previewHtml = `<ul class="test-preview-list">${result.jobs_preview.map((j) => `<li><strong>${escapeHtml(j.title)}</strong> (${escapeHtml(j.location || "Israel")})</li>`).join("")}</ul>`;
       }
-      resultBox.innerHTML = `<h4>✓ Success: Found ${result.jobs_count} live jobs!</h4><p>${escapeHtml(result.message)}</p>${previewHtml}`;
+      const platformInfo = result.detected_message ? `<p><strong>🎯 Detected Platform:</strong> ${escapeHtml(result.detected_message)}</p>` : "";
+      resultBox.innerHTML = `<h4>✓ Success: Found ${result.jobs_count} live jobs!</h4>${platformInfo}<p>${escapeHtml(result.message)}</p>${previewHtml}`;
     } else {
       resultBox.className = "test-result-box is-error";
-      resultBox.innerHTML = `<h4>✕ Connection Failed</h4><p>${escapeHtml(result.error || "Could not fetch jobs from this endpoint. Check the URL or board token.")}</p>`;
+      const platformInfo = result.detected_message ? `<p><strong>Detected:</strong> ${escapeHtml(result.detected_message)}</p>` : "";
+      resultBox.innerHTML = `<h4>✕ Connection Failed</h4>${platformInfo}<p>${escapeHtml(result.error || "Could not fetch jobs from this endpoint. Check the URL or board token.")}</p>`;
     }
   } catch (err) {
     resultBox.className = "test-result-box is-error";

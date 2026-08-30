@@ -156,6 +156,53 @@ def test_web_app_custom_company_endpoints(temp_db):
         res = client.get("/api/companies/custom")
         assert res.get_json()["custom_companies"] == []
 
+        # Auto-detect add company test
+        res = client.post("/api/companies/custom", json={
+            "name": "AutoTest Corp",
+            "ats_type": "auto",
+            "config": {"url": "https://job-boards.greenhouse.io/autotestcorp"},
+        })
+        assert res.status_code == 201
+        data = res.get_json()
+        assert data["company"]["ats_type"] == "greenhouse"
+        assert data["company"]["config"]["board_token"] == "autotestcorp"
+
+
+def test_auto_detect_company_ats_patterns():
+    from job_hunter_lib.jobs import auto_detect_company_ats
+    import asyncio
+    import httpx
+
+    async def _test():
+        async with httpx.AsyncClient() as client:
+            # Greenhouse
+            ats, cfg, msg = await auto_detect_company_ats(client, raw_url="https://job-boards.greenhouse.io/sampleboard")
+            assert ats == "greenhouse"
+            assert cfg["board_token"] == "sampleboard"
+
+            # Workday
+            ats, cfg, msg = await auto_detect_company_ats(client, raw_url="https://company.wd1.myworkdayjobs.com/wday/cxs/company/Site/jobs")
+            assert ats == "workday"
+            assert "myworkdayjobs.com" in cfg["base_url"]
+
+            # SmartRecruiters
+            ats, cfg, msg = await auto_detect_company_ats(client, raw_url="https://jobs.smartrecruiters.com/Wiz")
+            assert ats == "smartrecruiters"
+            assert cfg["id"] == "Wiz"
+
+            # Ashby
+            ats, cfg, msg = await auto_detect_company_ats(client, raw_url="https://jobs.ashbyhq.com/snyk")
+            assert ats == "ashby"
+            assert cfg["board_name"] == "snyk"
+
+            # Comeet
+            ats, cfg, msg = await auto_detect_company_ats(client, raw_url="https://www.comeet.com/jobs/acme/12.345")
+            assert ats == "comeet"
+            assert cfg["uid"] == "12.345"
+
+    asyncio.run(_test())
+
+
 
 
 

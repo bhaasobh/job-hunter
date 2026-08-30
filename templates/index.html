@@ -351,6 +351,7 @@
                     <div class="form-group flex-1">
                       <label for="newCompanyAts">ATS / Platform Type *</label>
                       <select id="newCompanyAts">
+                        <option value="auto" selected>✨ Unknown / Auto-Detect (Just paste Careers URL)</option>
                         <option value="greenhouse">Greenhouse (Job Boards)</option>
                         <option value="workday">Workday (CXS Portal)</option>
                         <option value="comeet">Comeet</option>
@@ -362,8 +363,17 @@
                   </div>
 
                   <!-- Dynamic ATS Config Fields -->
+                  <!-- Auto-Detect Fields (Default) -->
+                  <div id="atsFields-auto" class="ats-fields-group">
+                    <div class="form-group">
+                      <label for="autoCareersUrl">Career Page or Job Board Link</label>
+                      <input id="autoCareersUrl" type="url" placeholder="e.g. https://www.company.com/careers or https://company.wd1.myworkdayjobs.com/...">
+                      <p class="field-hint">Paste any career page or job listing link. We'll automatically identify the ATS platform (Greenhouse, Workday, Comeet, SmartRecruiters, Ashby, etc.) and configure the scraper.</p>
+                    </div>
+                  </div>
+
                   <!-- Greenhouse Fields -->
-                  <div id="atsFields-greenhouse" class="ats-fields-group">
+                  <div id="atsFields-greenhouse" class="ats-fields-group" hidden>
                     <div class="form-group">
                       <label for="ghBoardToken">Greenhouse Board Token or URL *</label>
                       <input id="ghBoardToken" type="text" placeholder="e.g. stripe or https://job-boards.greenhouse.io/stripe">

@@ -389,60 +389,201 @@ async def fetch_jobs(
     return jobs
 
 
-async def test_company_fetcher(ats_type: str, name: str, config: dict) -> tuple[list[dict], str]:
-    """Test fetching jobs for a company configuration and return (jobs_list, error_message)."""
+async def auto_detect_company_ats(
+    client: httpx.AsyncClient,
+    raw_url: str = "",
+    name: str = "",
+    config: dict | None = None,
+) -> tuple[str, dict, str]:
+    """
+    Intelligently detect the recruitment platform (ATS) from a URL, HTML, or company name.
+    Returns (ats_type, resolved_config, description_message).
+    """
+    url = str(raw_url or (config or {}).get("url") or (config or {}).get("base_url") or "").strip()
+    clean_name = str(name).strip()
+    name_slug = re.sub(r"[^a-zA-Z0-9]+", "", clean_name).lower()
+    cfg = dict(config or {})
+
+    # 1. Direct URL regex checks
+    if "greenhouse.io" in url.lower():
+        match = re.search(r"greenhouse\.io/(?:v1/boards/|embed/job_board\?for=)?([^/?#]+)", url, re.I)
+        token = match.group(1) if match else (name_slug or "company")
+        return "greenhouse", {"board_token": token}, f"Detected Greenhouse board '{token}'"
+
+    if "myworkdayjobs.com" in url.lower() or "myworkdaysite.com" in url.lower():
+        if "/wday/cxs/" in url and url.endswith("/jobs"):
+            base_url = url
+        else:
+            m = re.search(r"https?://([^/]+)/([^/]+)/([^/?#]+)", url)
+            if m:
+                base_url = f"https://{m.group(1)}/wday/cxs/{m.group(2)}/{m.group(3)}/jobs"
+            else:
+                base_url = url
+        return "workday", {"base_url": base_url, "search_text": cfg.get("search_text", "Israel")}, "Detected Workday CXS portal"
+
+    if "smartrecruiters.com" in url.lower():
+        match = re.search(r"smartrecruiters\.com/(?:v1/companies/)?([^/?#]+)", url, re.I)
+        token = match.group(1) if match else (name_slug or clean_name)
+        return "smartrecruiters", {"id": token, "assume_israel": True}, f"Detected SmartRecruiters ID '{token}'"
+
+    if "ashbyhq.com" in url.lower():
+        match = re.search(r"ashbyhq\.com/(?:posting-api/job-board/)?([^/?#]+)", url, re.I)
+        token = match.group(1) if match else (name_slug or clean_name)
+        return "ashby", {"board_name": token, "assume_israel": True}, f"Detected Ashby board '{token}'"
+
+    if "comeet.com" in url.lower() or "comeet.co" in url.lower():
+        match = re.search(r"comeet\.(?:com|co)/jobs/[^/]+/([^/?#]+)", url, re.I)
+        uid = match.group(1) if match else (cfg.get("uid") or "")
+        return "comeet", {"uid": uid, "token": cfg.get("token", ""), "assume_israel": True}, "Detected Comeet company"
+
+    # 2. If URL is given, perform HTTP GET to check for redirects, embedded iframes, or JS widgets
+    if url.startswith("http"):
+        try:
+            resp = await client.get(url, follow_redirects=True, timeout=12)
+            final_url = str(resp.url)
+            body = resp.text
+
+            # Check final redirected URL
+            if "greenhouse.io" in final_url.lower():
+                match = re.search(r"greenhouse\.io/(?:v1/boards/|embed/job_board\?for=)?([^/?#]+)", final_url, re.I)
+                token = match.group(1) if match else (name_slug or "company")
+                return "greenhouse", {"board_token": token}, f"Detected Greenhouse via redirect to '{token}'"
+
+            if "myworkdayjobs.com" in final_url.lower():
+                m = re.search(r"https?://([^/]+)/([^/]+)/([^/?#]+)", final_url)
+                base_url = f"https://{m.group(1)}/wday/cxs/{m.group(2)}/{m.group(3)}/jobs" if m else final_url
+                return "workday", {"base_url": base_url, "search_text": cfg.get("search_text", "Israel")}, "Detected Workday via redirect"
+
+            if "smartrecruiters.com" in final_url.lower():
+                match = re.search(r"smartrecruiters\.com/([^/?#]+)", final_url, re.I)
+                token = match.group(1) if match else (name_slug or clean_name)
+                return "smartrecruiters", {"id": token, "assume_israel": True}, "Detected SmartRecruiters via redirect"
+
+            if "ashbyhq.com" in final_url.lower():
+                match = re.search(r"ashbyhq\.com/([^/?#]+)", final_url, re.I)
+                token = match.group(1) if match else (name_slug or clean_name)
+                return "ashby", {"board_name": token, "assume_israel": True}, "Detected Ashby via redirect"
+
+            # Check HTML page source for embedded widgets
+            gh_match = re.search(r"boards\.greenhouse\.io/(?:embed/job_board\?for=|v1/boards/|)([a-zA-Z0-9_\-]+)", body, re.I)
+            if gh_match:
+                return "greenhouse", {"board_token": gh_match.group(1)}, f"Found Greenhouse embedded board '{gh_match.group(1)}'"
+
+            sr_match = re.search(r"jobs\.smartrecruiters\.com/([a-zA-Z0-9_\-]+)", body, re.I)
+            if sr_match:
+                return "smartrecruiters", {"id": sr_match.group(1), "assume_israel": True}, f"Found SmartRecruiters widget '{sr_match.group(1)}'"
+
+            ashby_match = re.search(r"jobs\.ashbyhq\.com/([a-zA-Z0-9_\-]+)", body, re.I)
+            if ashby_match:
+                return "ashby", {"board_name": ashby_match.group(1), "assume_israel": True}, f"Found Ashby widget '{ashby_match.group(1)}'"
+
+            wd_match = re.search(r"https?://([a-zA-Z0-9_\.\-]+\.myworkdayjobs\.com/[^\"'\s<>]+)", body, re.I)
+            if wd_match:
+                raw_wd = wd_match.group(1)
+                m = re.search(r"https?://([^/]+)/([^/]+)/([^/?#]+)", raw_wd)
+                base_url = f"https://{m.group(1)}/wday/cxs/{m.group(2)}/{m.group(3)}/jobs" if m else raw_wd
+                return "workday", {"base_url": base_url, "search_text": cfg.get("search_text", "Israel")}, "Found Workday link embedded in careers page"
+
+            # Check Comeet widgets in HTML
+            cm_match = re.search(r"data-company-uid=[\"']([^\"']+)[\"']", body, re.I)
+            if cm_match:
+                return "comeet", {"uid": cm_match.group(1), "token": "", "assume_israel": True}, f"Found Comeet widget UID '{cm_match.group(1)}'"
+
+            # Fallback to career page scraper with this URL
+            markers = cfg.get("path_markers")
+            if isinstance(markers, str):
+                markers = [m.strip() for m in markers.split(",") if m.strip()]
+            return "career_page", {"url": final_url, "path_markers": markers or ["/job/", "/jobs/", "/position/", "/careers/"], "assume_israel": True}, f"Direct Career Page scraper ({final_url})"
+
+        except Exception:
+            pass
+
+    # 3. If only name was provided, probe Greenhouse / Ashby APIs
+    if name_slug:
+        try:
+            gh_probe = await client.get(f"https://boards-api.greenhouse.io/v1/boards/{name_slug}/jobs", timeout=6)
+            if gh_probe.status_code == 200:
+                return "greenhouse", {"board_token": name_slug}, f"Auto-detected active Greenhouse board '{name_slug}'"
+        except Exception:
+            pass
+
+        try:
+            ashby_probe = await client.get(f"https://api.ashbyhq.com/posting-api/job-board/{name_slug}", timeout=6)
+            if ashby_probe.status_code == 200:
+                return "ashby", {"board_name": name_slug, "assume_israel": True}, f"Auto-detected active Ashby board '{name_slug}'"
+        except Exception:
+            pass
+
+    # Default fallback
+    target_url = url if url.startswith("http") else (f"https://www.{name_slug}.com/careers" if name_slug else "")
+    return "career_page", {"url": target_url, "path_markers": ["/job/", "/jobs/", "/position/", "/careers/"], "assume_israel": True}, "Configured as Standard Career Page"
+
+
+async def test_company_fetcher(ats_type: str, name: str, config: dict) -> tuple[list[dict], str, str, str, dict]:
+    """
+    Test fetching jobs for a company configuration and return:
+    (jobs_list, error_message, detected_ats, detected_message, resolved_config).
+    """
     ats = str(ats_type).strip().lower()
     clean_name = str(name).strip() or "TestCompany"
+    cfg = dict(config or {})
+    detected_msg = ""
+
     try:
         async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            if ats in {"auto", "unknown", "detect", ""}:
+                raw_url = cfg.get("url") or cfg.get("base_url") or ""
+                ats, cfg, detected_msg = await auto_detect_company_ats(client, raw_url=raw_url, name=clean_name, config=cfg)
+
             if ats == "greenhouse":
-                token = str(config.get("board_token") or clean_name).strip()
+                token = str(cfg.get("board_token") or clean_name).strip()
                 jobs, _ = await fetch_greenhouse_jobs(client, token, notify=False, company_name=clean_name)
             elif ats == "workday":
                 wd_source = {
                     "company": clean_name,
-                    "base_url": config.get("base_url", ""),
-                    "payload": config.get("payload") or {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": config.get("search_text", "Israel")},
+                    "base_url": cfg.get("base_url", ""),
+                    "payload": cfg.get("payload") or {"appliedFacets": {}, "limit": 20, "offset": 0, "searchText": cfg.get("search_text", "Israel")},
                 }
                 jobs, _ = await fetch_workday_jobs(client, wd_source, notify=False)
             elif ats == "comeet":
                 cm_source = {
                     "company": clean_name,
-                    "uid": config.get("uid", ""),
-                    "token": config.get("token", ""),
-                    "assume_israel": config.get("assume_israel", True),
+                    "uid": cfg.get("uid", ""),
+                    "token": cfg.get("token", ""),
+                    "assume_israel": cfg.get("assume_israel", True),
                 }
                 jobs, _ = await fetch_comeet_jobs(client, cm_source, notify=False)
             elif ats == "smartrecruiters":
                 sr_source = {
                     "company": clean_name,
-                    "id": config.get("id", clean_name),
-                    "assume_israel": config.get("assume_israel", True),
+                    "id": cfg.get("id", clean_name),
+                    "assume_israel": cfg.get("assume_israel", True),
                 }
                 jobs, _ = await fetch_smartrecruiters_jobs(client, sr_source, notify=False)
             elif ats == "ashby":
                 ab_source = {
                     "company": clean_name,
-                    "board_name": config.get("board_name", clean_name),
-                    "assume_israel": config.get("assume_israel", True),
+                    "board_name": cfg.get("board_name", clean_name),
+                    "assume_israel": cfg.get("assume_israel", True),
                 }
                 jobs, _ = await fetch_ashby_jobs(client, ab_source, notify=False)
             elif ats in {"career_page", "website", "html"}:
-                markers = config.get("path_markers")
+                markers = cfg.get("path_markers")
                 if isinstance(markers, str):
                     markers = [m.strip() for m in markers.split(",") if m.strip()]
                 cp_source = {
                     "company": clean_name,
-                    "url": config.get("url", ""),
+                    "url": cfg.get("url", ""),
                     "path_markers": markers or ["/job/", "/jobs/", "/position/", "/careers/"],
-                    "assume_israel": config.get("assume_israel", True),
+                    "assume_israel": cfg.get("assume_israel", True),
                 }
                 jobs, _ = await fetch_career_page_jobs(client, cp_source, notify=False)
             else:
-                return [], f"Unsupported ATS type: {ats_type}"
+                return [], f"Unsupported ATS type: {ats_type}", ats, detected_msg, cfg
 
             enriched = [extract_job_sections(j) for j in jobs]
-            return enriched, ""
+            return enriched, "", ats, detected_msg or f"Platform: {ats.capitalize()}", cfg
     except Exception as exc:
-        return [], str(exc)
+        return [], str(exc), ats, detected_msg, cfg
+
 

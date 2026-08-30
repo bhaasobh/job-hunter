@@ -16,7 +16,7 @@ from pypdf import PdfReader
 from docx import Document
 
 from job_hunter_lib.config import OLLAMA_MODEL, OLLAMA_URL, SUPPORTED_COMPANIES, TELEGRAM_BOT_TOKEN
-from job_hunter_lib.jobs import extract_cv_keywords, fetch_jobs, test_company_fetcher
+from job_hunter_lib.jobs import auto_detect_company_ats, extract_cv_keywords, fetch_jobs, test_company_fetcher
 from job_hunter_lib.local_database import (
     add_custom_company,
     delete_custom_company,
@@ -576,11 +576,22 @@ def create_custom_company():
     config = data.get("config") if isinstance(data.get("config"), dict) else {}
     if not name:
         return jsonify({"error": "Company name is required."}), 400
+    
+    if ats_type in {"auto", "unknown", "detect", ""}:
+        raw_url = config.get("url") or config.get("base_url") or ""
+        try:
+            async def _detect():
+                async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+                    return await auto_detect_company_ats(client, raw_url=raw_url, name=name, config=config)
+            ats_type, config, msg = asyncio.run(_detect())
+        except Exception:
+            ats_type = "career_page"
+
     if ats_type not in {"greenhouse", "workday", "comeet", "smartrecruiters", "ashby", "career_page"}:
-        return jsonify({"error": "Invalid ATS type. Choose Greenhouse, Workday, Comeet, SmartRecruiters, Ashby, or Career Website."}), 400
+        return jsonify({"error": "Invalid ATS type. Choose Auto-Detect, Greenhouse, Workday, Comeet, SmartRecruiters, Ashby, or Career Website."}), 400
     
     saved = add_custom_company(name=name, ats_type=ats_type, config=config)
-    return jsonify({"company": saved, "message": f"Successfully added {name}!"}), 201
+    return jsonify({"company": saved, "message": f"Successfully added {name} ({ats_type.capitalize()})!"}), 201
 
 
 @app.delete("/api/companies/custom/<company_id>")
@@ -597,22 +608,32 @@ def test_company():
     name = str(data.get("name") or "").strip() or "TestCompany"
     ats_type = str(data.get("ats_type") or "").strip().lower()
     config = data.get("config") if isinstance(data.get("config"), dict) else {}
-    if not ats_type:
-        return jsonify({"error": "ATS type is required."}), 400
     
     try:
-        jobs, error = asyncio.run(test_company_fetcher(ats_type=ats_type, name=name, config=config))
+        jobs, error, detected_ats, detected_msg, resolved_config = asyncio.run(
+            test_company_fetcher(ats_type=ats_type, name=name, config=config)
+        )
     except Exception as exc:
         return jsonify({"success": False, "jobs_count": 0, "error": str(exc)}), 200
 
     if error:
-        return jsonify({"success": False, "jobs_count": 0, "error": error}), 200
+        return jsonify({
+            "success": False,
+            "jobs_count": 0,
+            "error": error,
+            "detected_ats": detected_ats,
+            "detected_message": detected_msg,
+            "resolved_config": resolved_config,
+        }), 200
     
     return jsonify({
         "success": True,
         "jobs_count": len(jobs),
         "jobs_preview": jobs[:5],
-        "message": f"Successfully fetched {len(jobs)} active jobs for {name}!",
+        "detected_ats": detected_ats,
+        "detected_message": detected_msg,
+        "resolved_config": resolved_config,
+        "message": f"Found {len(jobs)} active jobs for {name} ({detected_ats.capitalize()})!",
     })
 
 
