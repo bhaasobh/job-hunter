@@ -573,10 +573,11 @@ async def test_company_fetcher(ats_type: str, name: str, config: dict) -> tuple[
                 markers = cfg.get("path_markers")
                 if isinstance(markers, str):
                     markers = [m.strip() for m in markers.split(",") if m.strip()]
+                default_markers = ["/job/", "/jobs/", "/position/", "/positions/", "/pos/", "/opening/", "/openings/", "/career/", "/careers/", "/vacancy/", "/vacancies/"]
                 cp_source = {
                     "company": clean_name,
                     "url": cfg.get("url", ""),
-                    "path_markers": markers or ["/job/", "/jobs/", "/position/", "/careers/"],
+                    "path_markers": markers or default_markers,
                     "assume_israel": cfg.get("assume_israel", True),
                 }
                 jobs, _ = await fetch_career_page_jobs(client, cp_source, notify=False)
@@ -584,6 +585,8 @@ async def test_company_fetcher(ats_type: str, name: str, config: dict) -> tuple[
                 return [], f"Unsupported ATS type: {ats_type}", ats, detected_msg, cfg
 
             enriched = [extract_job_sections(j) for j in jobs]
+            if not enriched:
+                return [], "No active job postings were found at this URL or platform.", ats, detected_msg or f"Platform: {ats.capitalize()}", cfg
             return enriched, "", ats, detected_msg or f"Platform: {ats.capitalize()}", cfg
     except Exception as exc:
         return [], str(exc), ats, detected_msg, cfg
