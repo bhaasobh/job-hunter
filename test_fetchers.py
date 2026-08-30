@@ -334,3 +334,14 @@ def test_all_fetcher_functions_have_tests():
         and getattr(value, "__module__", None) == fetchers.__name__
     }
     assert actual == expected
+
+
+def test_fetch_jobs_source_calls_registration():
+    from job_hunter_lib.jobs import fetch_jobs
+    import asyncio
+
+    # Run with non-existent company filter to verify all source_calls build without NameError
+    jobs = asyncio.run(fetch_jobs(companies=["non_existent_company"], notify=False))
+    assert jobs == []
+
+

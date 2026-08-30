@@ -37,6 +37,8 @@ from job_hunter_lib.fetchers import (
     fetch_bank_jobs,
     fetch_government_jobs,
     fetch_big_tech_jobs,
+    fetch_career_page_jobs,
+    format_source_error,
     ACTIVE_EXCLUDED_KEYWORDS,
     TITLE_EXCLUDED_KEYWORDS,
 )
