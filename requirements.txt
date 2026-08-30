@@ -1,0 +1,10 @@
+httpx
+python-telegram-bot[job-queue]
+pymongo[srv]
+dnspython
+Flask
+beautifulsoup4
+python-dotenv
+pypdf
+python-docx
+pytest

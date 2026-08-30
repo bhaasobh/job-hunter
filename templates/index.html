@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Job Hunter AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <!-- Onboarding Modal -->
+  <div id="onboardingOverlay" class="modal-overlay" hidden>
+    <div class="onboarding-modal">
+      <button id="onboardingSkip" class="onboarding-skip" type="button">Skip</button>
+      <div id="onboardingContent" class="onboarding-content"></div>
+      <div class="onboarding-nav">
+        <button id="onboardingBack" class="secondary-btn" type="button" hidden>Back</button>
+        <button id="onboardingNext" class="primary-btn" type="button">Next</button>
+      </div>
+      <div class="onboarding-progress">
+        <div id="onboardingProgressBar" class="progress-bar"></div>
+        <span id="onboardingProgressText">1 of 5</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">🎯</div>
+          <div class="logo-text">
+            <h1>Job Hunter</h1>
+            <p class="logo-subtitle">AI</p>
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-page="dashboard">
+          <span class="icon">📊</span>
+          <span class="label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-page="jobs">
+          <span class="icon">💼</span>
+          <span class="label">Jobs</span>
+        </button>
+        <button class="nav-item" data-page="companies">
+          <span class="icon">🏢</span>
+          <span class="label">Companies</span>
+        </button>
+        <button class="nav-item" data-page="cv-profile">
+          <span class="icon">👤</span>
+          <span class="label">CV & Profile</span>
+        </button>
+        <button class="nav-item" data-page="settings">
+          <span class="icon">⚙️</span>
+          <span class="label">Settings</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="notificationBell" class="icon-btn" title="Notifications">
+          <span class="icon">🔔</span>
+          <span id="notificationBadge" class="badge" hidden></span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="app-header">
+        <div class="header-left">
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="pageSubtitle" class="subtitle"></p>
+        </div>
+        <div class="header-right">
+          <button id="searchButton" class="primary-btn" hidden>Search Jobs Now</button>
+        </div>
+      </header>
+
+      <div class="pages-container">
+        <!-- DASHBOARD PAGE -->
+        <div id="page-dashboard" class="page" data-page="dashboard">
+          <div class="page-content">
+            <!-- Empty State for New Users -->
+            <div id="emptyState" class="empty-state" hidden>
+              <div class="empty-icon">👋</div>
+              <h3>Welcome to Job Hunter AI</h3>
+              <p>Let's get you started finding your next opportunity!</p>
+              <div class="empty-actions">
+                <button id="getStartedBtn" class="primary-btn">Get Started</button>
+                <button id="skipSetupBtn" class="secondary-btn">Explore Dashboard</button>
+              </div>
+            </div>
+
+            <!-- Dashboard Stats (shown after setup) -->
+            <div id="dashboardStats" class="dashboard-grid">
+              <div class="stat-card">
+                <div class="stat-icon">📋</div>
+                <div class="stat-info">
+                  <p class="stat-label">Jobs Found</p>
+                  <p class="stat-value" id="totalJobs">0</p>
+                  <p class="stat-detail">all time</p>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-icon">✨</div>
+                <div class="stat-info">
+                  <p class="stat-label">New Today</p>
+                  <p class="stat-value" id="newJobsToday">0</p>
+                  <p class="stat-detail">latest scan</p>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-icon">⭐</div>
+                <div class="stat-info">
+                  <p class="stat-label">Matching Jobs</p>
+                  <p class="stat-value" id="matchingJobs">0</p>
+                  <p class="stat-detail">good fit</p>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-icon">💾</div>
+                <div class="stat-info">
+                  <p class="stat-label">Saved Jobs</p>
+                  <p class="stat-value" id="savedJobs">0</p>
+                  <p class="stat-detail">bookmarked</p>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-icon">🏢</div>
+                <div class="stat-info">
+                  <p class="stat-label">Companies</p>
+                  <p class="stat-value" id="monitoredCompanies">0</p>
+                  <p class="stat-detail">monitored</p>
+                </div>
+              </div>
+
+              <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-info">
+                  <p class="stat-label">Applied</p>
+                  <p class="stat-value" id="appliedJobs">0</p>
+                  <p class="stat-detail">submitted</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Scanning Status -->
+            <div class="scan-status-section">
+              <h3>Scanning Status</h3>
+              <div class="scan-status-card">
+                <div class="status-content">
+                  <div id="scanStatusMessage" class="scan-message">
+                    <p>No scan yet. Start your first scan to find jobs!</p>
+                  </div>
+                  <div id="scanProgress" class="scan-progress" hidden>
+                    <div class="progress-text">
+                      <span id="scanPhase">Scanning companies...</span>
+                      <span id="scanCount">0/0</span>
+                    </div>
+                    <div class="progress-bar-container">
+                      <div id="scanProgressBar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="scan-info">
+                  <div id="lastScanInfo" class="info-item">
+                    <span class="label">Last scan:</span>
+                    <span class="value">Never</span>
+                  </div>
+                  <div id="nextScanInfo" class="info-item">
+                    <span class="label">Next scan:</span>
+                    <span class="value">--</span>
+                  </div>
+                </div>
+              </div>
+              <button id="startScanBtn" class="primary-btn full-width">Start Scan Now</button>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+              <h3>Quick Actions</h3>
+              <div class="actions-grid">
+                <button class="action-card" data-action="view-jobs">
+                  <span class="action-icon">💼</span>
+                  <span class="action-label">Browse Jobs</span>
+                </button>
+                <button class="action-card" data-action="upload-cv">
+                  <span class="action-icon">📄</span>
+                  <span class="action-label">Upload CV</span>
+                </button>
+                <button class="action-card" data-action="manage-companies">
+                  <span class="action-icon">🏢</span>
+                  <span class="action-label">Manage Companies</span>
+                </button>
+                <button class="action-card" data-action="view-settings">
+                  <span class="action-icon">⚙️</span>
+                  <span class="action-label">Settings</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- JOBS PAGE -->
+        <div id="page-jobs" class="page" data-page="jobs" hidden>
+          <div class="page-content">
+            <!-- Scanning Status -->
+            <div class="scan-status-section jobs-scan-status-section">
+              <h3>Scanning Status</h3>
+              <div class="scan-status-card">
+                <div class="status-content">
+                  <div id="jobsScanStatusMessage" class="scan-message">
+                    <p>No scan yet. Start your first scan to find jobs!</p>
+                  </div>
+                  <div id="jobsScanProgress" class="scan-progress" hidden>
+                    <div class="progress-text">
+                      <span id="jobsScanPhase">Scanning companies...</span>
+                      <span id="jobsScanCount">0/0</span>
+                    </div>
+                    <div class="progress-bar-container">
+                      <div id="jobsScanProgressBar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="scan-info">
+                  <div id="jobsLastScanInfo" class="info-item">
+                    <span class="label">Last scan:</span>
+                    <span class="value">Never</span>
+                  </div>
+                  <div id="jobsNextScanInfo" class="info-item">
+                    <span class="label">Next scan:</span>
+                    <span class="value">--</span>
+                  </div>
+                </div>
+              </div>
+              <button id="jobsStartScanBtn" class="primary-btn full-width">Start Scan Now</button>
+            </div>
+
+            <!-- Job Filters -->
+            <div class="jobs-filters">
+              <div class="filter-group">
+                <input id="keywordFilter" class="filter-input" type="search" placeholder="Search by title, skill, company…">
+              </div>
+              <div class="filter-group">
+                <select id="statusFilter" class="filter-select">
+                  <option value="">All jobs</option>
+                  <option value="new">New</option>
+                  <option value="old">Old</option>
+                  <option value="saved">Saved</option>
+                  <option value="applied">Applied</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <select id="companyJobFilter" class="filter-select">
+                  <option value="">All companies</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <select id="locationJobFilter" class="filter-select">
+                  <option value="">All locations</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <select id="jobSort" class="filter-select" aria-label="Sort jobs">
+                  <option value="newest">Newest first</option>
+                  <option value="match">Best match</option>
+                  <option value="title">Title A–Z</option>
+                  <option value="company">Company A–Z</option>
+                  <option value="location">Location A–Z</option>
+                  <option value="status">Status A–Z</option>
+                  <option value="seen">Most seen</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label class="remote-filter">
+                  <input id="remoteFilter" type="checkbox">
+                  <span>Remote only</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Job Results -->
+            <div id="jobsContainer" class="jobs-container">
+              <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading jobs...</p>
+              </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="noJobsState" class="empty-state" hidden>
+              <div class="empty-icon">🔍</div>
+              <h3>No jobs found</h3>
+              <p>Try adjusting your filters or start a new search</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- COMPANIES PAGE -->
+        <div id="page-companies" class="page" data-page="companies" hidden>
+          <div class="page-content">
+            <div class="companies-controls">
+              <input id="companySearch" class="filter-input" type="search" placeholder="Search companies…">
+              <button id="scanAllBtn" class="primary-btn">Scan All</button>
+            </div>
+
+            <div id="companiesContainer" class="companies-grid">
+              <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading companies...</p>
+              </div>
+            </div>
+
+            <div id="noCompaniesState" class="empty-state" hidden>
+              <div class="empty-icon">🏢</div>
+              <h3>No companies monitored yet</h3>
+              <p>Add companies in CV & Profile settings to start scanning</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- CV & PROFILE PAGE -->
+        <div id="page-cv-profile" class="page" data-page="cv-profile" hidden>
+          <div class="page-content">
+            <!-- CV Section -->
+            <section class="profile-section">
+              <h3>📄 CV</h3>
+              <div class="cv-upload-card">
+                <div class="upload-area" id="uploadArea">
+                  <div class="upload-icon">📁</div>
+                  <h4>Upload your CV</h4>
+                  <p>Drag and drop or click to choose file</p>
+                  <p class="upload-hint">PDF, DOCX, or TXT (up to 5 MB)</p>
+                  <input id="cvFileInput" type="file" accept=".pdf,.docx,.txt" hidden>
+                </div>
+              </div>
+              <div id="cvStatus" class="cv-status" hidden>
+                <p class="success-message">✓ CV uploaded and analyzed</p>
+                <button id="replaceCvBtn" class="secondary-btn">Replace CV</button>
+                <div id="cvKeywords" class="cv-keywords"></div>
+              </div>
+            </section>
+
+            <!-- Personal Profile Section -->
+            <section class="profile-section">
+              <h3>👤 Personal Profile</h3>
+              <form id="profileForm" class="profile-form">
+                <div class="form-group">
+                  <label>Full Name</label>
+                  <input id="fullName" type="text" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                  <label>Preferred Job Titles</label>
+                  <input id="jobTitles" type="text" placeholder="e.g., Software Engineer, Full Stack Developer">
+                </div>
+                <div class="form-group">
+                  <label>Preferred Locations</label>
+                  <input id="preferredLocations" type="text" placeholder="e.g., Tel Aviv, Remote, Israel">
+                </div>
+                <div class="form-group">
+                  <label>Work Arrangement</label>
+                  <select id="workArrangement">
+                    <option value="">Any</option>
+                    <option value="remote">Remote</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="onsite">On-site</option>
+                  </select>
+                </div>
+              </form>
+            </section>
+
+            <!-- Skills Section -->
+            <section class="profile-section">
+              <h3>💻 Skills</h3>
+              <div class="skills-section">
+                <div class="skill-category">
+                  <h4>Programming Languages</h4>
+                  <div id="languageSkills" class="skills-list"></div>
+                  <input id="addLanguage" class="add-skill-input" type="text" placeholder="Add a language…">
+                </div>
+                <div class="skill-category">
+                  <h4>Frameworks & Libraries</h4>
+                  <div id="frameworkSkills" class="skills-list"></div>
+                  <input id="addFramework" class="add-skill-input" type="text" placeholder="Add a framework…">
+                </div>
+                <div class="skill-category">
+                  <h4>Tools & Technologies</h4>
+                  <div id="toolSkills" class="skills-list"></div>
+                  <input id="addTool" class="add-skill-input" type="text" placeholder="Add a tool…">
+                </div>
+              </div>
+            </section>
+
+            <!-- Experience Section -->
+            <section class="profile-section">
+              <h3>🏆 Experience</h3>
+              <p class="section-hint">Your experience helps AI match jobs more accurately</p>
+              <div id="experienceForm" class="experience-form">
+                <div class="form-group">
+                  <label>Years of Experience</label>
+                  <select id="yearsExperience">
+                    <option value="">Select...</option>
+                    <option value="0-1">0-1 years</option>
+                    <option value="1-3">1-3 years</option>
+                    <option value="3-5">3-5 years</option>
+                    <option value="5-10">5-10 years</option>
+                    <option value="10+">10+ years</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Current Role</label>
+                  <input id="currentRole" type="text" placeholder="e.g., Senior Software Engineer">
+                </div>
+                <div class="form-group">
+                  <label>About You</label>
+                  <textarea id="aboutYou" placeholder="Brief description of your experience…" rows="4"></textarea>
+                </div>
+              </div>
+              <button id="saveProfileBtn" class="primary-btn">Save Profile</button>
+            </section>
+          </div>
+        </div>
+
+        <!-- SETTINGS PAGE -->
+        <div id="page-settings" class="page" data-page="settings" hidden>
+          <div class="page-content">
+            <!-- Job Scanning Settings -->
+            <section class="settings-section">
+              <h3>⚙️ Job Scanning</h3>
+              <div class="setting-item">
+                <div class="setting-label">
+                  <h4>Automatic Scanning</h4>
+                  <p>Enable automatic job scanning at set intervals</p>
+                </div>
+                <label class="toggle">
+                  <input id="autoScanToggle" type="checkbox" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="setting-item">
+                <label>Scan Frequency (hours)</label>
+                <select id="scanFrequency">
+                  <option value="1">Every 1 hour</option>
+                  <option value="2">Every 2 hours</option>
+                  <option value="4" selected>Every 4 hours</option>
+                  <option value="6">Every 6 hours</option>
+                  <option value="12">Every 12 hours</option>
+                  <option value="24">Every 24 hours</option>
+                </select>
+              </div>
+              <div class="setting-item">
+                <label>Companies to Scan</label>
+                <select id="companiesScope">
+                  <option value="all">All companies</option>
+                  <option value="selected">Selected companies only</option>
+                </select>
+              </div>
+            </section>
+
+            <!-- Matching Settings -->
+            <section class="settings-section">
+              <h3>🎯 Job Matching</h3>
+              <div class="setting-item">
+                <label>Minimum Match Percentage (%)</label>
+                <input id="minMatchPercentage" type="number" min="0" max="100" value="70">
+              </div>
+              <div class="setting-item">
+                <label>Preferred Technologies (comma-separated)</label>
+                <textarea id="preferredTechs" placeholder="e.g., Python, Kubernetes, React" rows="3"></textarea>
+              </div>
+              <div class="setting-item">
+                <label>Preferred Positions</label>
+                <textarea id="preferredPositions" placeholder="e.g., Backend Engineer, DevOps, ML Engineer" rows="3"></textarea>
+              </div>
+              <div class="setting-item">
+                <label>Excluded Words</label>
+                <textarea id="excludedKeywords" placeholder="e.g., senior, manager, internship" rows="3"></textarea>
+              </div>
+            </section>
+
+            <!-- Telegram Notifications -->
+            <section class="settings-section">
+              <h3>📱 Telegram Notifications</h3>
+              <div class="setting-item">
+                <div class="setting-label">
+                  <h4>Send Notifications</h4>
+                  <p>Get Telegram notifications for matching jobs</p>
+                </div>
+                <label class="toggle">
+                  <input id="telegramToggle" type="checkbox">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div id="telegramSettings" class="settings-group" hidden>
+                <div class="setting-item">
+                  <label>Notification Frequency</label>
+                  <select id="telegramFrequency">
+                    <option value="immediately">Immediately</option>
+                    <option value="4hours">Every 4 hours</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                </div>
+                <div class="setting-item">
+                  <label>Minimum Match for Notification (%)</label>
+                  <input id="telegramMinMatch" type="number" min="0" max="100" value="75">
+                </div>
+                <button id="testTelegramBtn" class="secondary-btn">Send Test Message</button>
+              </div>
+            </section>
+
+            <!-- Other Settings -->
+            <section class="settings-section">
+              <h3>ℹ️ Application</h3>
+              <div class="setting-item">
+                <button id="showTutorialBtn" class="secondary-btn">Show Tutorial Again</button>
+              </div>
+              <div class="setting-item">
+                <button id="clearDataBtn" class="danger-btn">Clear All Data</button>
+              </div>
+            </section>
+
+            <button id="saveSettingsBtn" class="primary-btn">Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Job Details Modal -->
+  <div id="jobDetailsModal" class="modal" hidden>
+    <div class="modal-content">
+      <button id="closeJobModal" class="modal-close">×</button>
+      <div id="jobDetailsContainer" class="job-details"></div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay" hidden>
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <p id="loadingText">Loading...</p>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="notificationToast" class="notification-toast" hidden></div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
