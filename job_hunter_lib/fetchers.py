@@ -1054,25 +1054,31 @@ async def fetch_career_page_jobs(client: httpx.AsyncClient, source: dict, notify
         return [], 0
 
     page_host = urlparse(page_url).netloc.removeprefix("www.")
-    markers = tuple(source.get("path_markers") or ["/job/", "/jobs/", "/position/"])
+    markers = tuple(source.get("path_markers") or ["/job/", "/jobs/", "/position/", "/positions/", "/pos/", "/opening/", "/openings/", "/career/", "/careers/", "/vacancy/", "/vacancies/"])
     jobs = []
     seen_urls = set()
     candidates = []
     if proxy_url:
         for match in re.finditer(r"\[([^\]]+)\]\((https?://[^)]+)\)", response.text):
             context = response.text[max(0, match.start() - 250):match.end() + 250]
-            candidates.append((match.group(1).strip(), match.group(2), context))
+            candidates.append((match.group(1).strip(), match.group(2), context, ""))
     else:
         soup = BeautifulSoup(response.text, "html.parser")
         for link in soup.select("a[href]"):
-            card = link.find_parent(["article", "li", "div"])
+            heading = link.select_one("h1, h2, h3, h4, h5, h6, [class*='title'], [fs-list-field='title']")
+            title_text = heading.get_text(" ", strip=True) if heading else link.get_text(" ", strip=True)
+            loc_node = link.select_one("[fs-list-field='location'], [class*='location']")
+            loc_text = loc_node.get_text(" ", strip=True) if loc_node else ""
+            card = link.find_parent(["article", "li", "div", "tr"])
+            context = card.get_text(" ", strip=True) if card else title_text
             candidates.append((
-                link.get_text(" ", strip=True),
+                title_text,
                 urljoin(page_url, str(link.get("href", ""))),
-                card.get_text(" ", strip=True) if card else link.get_text(" ", strip=True),
+                context,
+                loc_text,
             ))
 
-    for title, href, context in candidates:
+    for title, href, context, explicit_location in candidates:
         parsed = urlparse(href)
         if parsed.netloc.removeprefix("www.") != page_host:
             continue
@@ -1081,22 +1087,32 @@ async def fetch_career_page_jobs(client: httpx.AsyncClient, source: dict, notify
         if not any(marker in parsed.path.lower() for marker in markers):
             continue
 
-        if not title or len(title) < 3 or title.lower() in {"apply", "apply now", "read more", "view job"} or title.lower().startswith("image "):
+        if not title or len(title) < 3 or title.lower() in {"apply", "apply now", "read more", "view job", "learn more"} or title.lower().startswith("image "):
             continue
+        
+        full_text = f"{title} {explicit_location} {context}"
         location_match = re.search(
             r"\b(Israel|Tel Aviv|Haifa|Jerusalem|Herzliya|Petah Tikva|Ramat Gan|"
             r"Ra['’]?anana|Rehovot|Migdal Haemek|Hod Hasharon|Caesarea|Yokneam)\b",
-            context,
+            full_text,
             re.I,
         )
         if not location_match and not source.get("assume_israel"):
             continue
 
+        if href in seen_urls:
+            continue
         seen_urls.add(href)
+        
+        if location_match:
+            resolved_location = explicit_location if (explicit_location and "israel" in explicit_location.lower()) else f"{location_match.group(1)}"
+        else:
+            resolved_location = explicit_location or "Israel"
+
         job = {
             "title": title,
             "company": company,
-            "location": location_match.group(1) if location_match else "Israel",
+            "location": resolved_location,
             "salary": "Not specified",
             "description": trim_text(context),
             "job_type": "Full-time",

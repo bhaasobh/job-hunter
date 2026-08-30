@@ -493,7 +493,8 @@ async def auto_detect_company_ats(
             markers = cfg.get("path_markers")
             if isinstance(markers, str):
                 markers = [m.strip() for m in markers.split(",") if m.strip()]
-            return "career_page", {"url": final_url, "path_markers": markers or ["/job/", "/jobs/", "/position/", "/careers/"], "assume_israel": True}, f"Direct Career Page scraper ({final_url})"
+            default_markers = ["/job/", "/jobs/", "/position/", "/positions/", "/pos/", "/opening/", "/openings/", "/career/", "/careers/", "/vacancy/", "/vacancies/"]
+            return "career_page", {"url": final_url, "path_markers": markers or default_markers, "assume_israel": True}, f"Direct Career Page scraper ({final_url})"
 
         except Exception:
             pass
@@ -515,8 +516,9 @@ async def auto_detect_company_ats(
             pass
 
     # Default fallback
+    default_markers = ["/job/", "/jobs/", "/position/", "/positions/", "/pos/", "/opening/", "/openings/", "/career/", "/careers/", "/vacancy/", "/vacancies/"]
     target_url = url if url.startswith("http") else (f"https://www.{name_slug}.com/careers" if name_slug else "")
-    return "career_page", {"url": target_url, "path_markers": ["/job/", "/jobs/", "/position/", "/careers/"], "assume_israel": True}, "Configured as Standard Career Page"
+    return "career_page", {"url": target_url, "path_markers": default_markers, "assume_israel": True}, "Configured as Standard Career Page"
 
 
 async def test_company_fetcher(ats_type: str, name: str, config: dict) -> tuple[list[dict], str, str, str, dict]:
