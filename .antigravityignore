@@ -1,0 +1,91 @@
+# Dependency trees & environments
+.venv/
+venv/
+env/
+ENV/
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+Pods/
+.tox/
+
+# Build artifacts & bundles
+dist/
+build/
+out/
+*.egg-info/
+.expo/
+android/app/build/
+ios/build/
+.cache/
+
+# Databases, datasets & large binary datasets
+*.db
+*.sqlite
+*.sqlite3
+jobs.db
+*.dump
+*.sql.gz
+cvs/
+*.parquet
+*.arrow
+
+# ML weights & models
+*.pt
+*.pth
+*.onnx
+*.bin
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.safetensors
+*.tflite
+*.ckpt
+
+# Compressed archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Media & document uploads
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.mp4
+*.mov
+*.avi
+*.mp3
+*.wav
+*.pdf
+*.docx
+
+# Logs & test coverage
+*.log
+logs/
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# Environment & credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# OS & IDE metadata
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
