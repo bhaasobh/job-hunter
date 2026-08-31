@@ -451,6 +451,12 @@ COMEET_SOURCES = [
         "token": "68B2742D1600D16020B71A2C2742"
     },
     {
+        "company": "weski",
+        "uid": "F8.00C",
+        "token": "8FC35E847E03EE423F011F811F801AF435E8",
+        "assume_israel": True,
+    },
+    {
         "company": "qedma",
         "uid": "7A.006",
         "token": "A76493A344E14EC029D853B01F621F62A76"

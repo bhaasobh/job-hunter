@@ -1205,21 +1205,42 @@ async def fetch_career_page_jobs(client: httpx.AsyncClient, source: dict, notify
 async def fetch_comeet_jobs(client: httpx.AsyncClient, source: dict, notify: bool = True) -> tuple[list[dict], int]:
     company = source["company"]
     uid = source["uid"]
-    token = source["token"]
+    token = source.get("token", "")
     print(f"Fetching Comeet jobs for {company}...")
     
-    url = f"https://www.comeet.co/careers-api/2.0/company/{uid}/positions"
-    params = {
-        "token": token,
-        "details": "true"
-    }
-    
-    try:
-        response = await client.get(url, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-    except Exception as exc:
-        print(f"Source fetch failed: {exc} from {company}")
+    data = None
+    if token:
+        url = f"https://www.comeet.co/careers-api/2.0/company/{uid}/positions"
+        params = {
+            "token": token,
+            "details": "true"
+        }
+        try:
+            response = await client.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as exc:
+            pass
+
+    if not data:
+        # Fallback to scraping embedded COMPANY_POSITIONS_DATA from Comeet hosted portal
+        try:
+            hosted_urls = [
+                f"https://www.comeet.com/jobs/{company}/{uid}/",
+                f"https://www.comeet.co/jobs/{company}/{uid}/",
+            ]
+            for hosted_url in hosted_urls:
+                page_resp = await client.get(hosted_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=30)
+                if page_resp.status_code == 200:
+                    match = re.search(r'COMPANY_POSITIONS_DATA\s*=\s*(\[.*?\]);\s*(?:var|\n|\r)', page_resp.text, re.DOTALL)
+                    if match:
+                        data = json.loads(match.group(1))
+                        break
+        except Exception as page_exc:
+            print(f"Comeet page fallback failed: {page_exc} from {company}")
+
+    if data is None:
+        print(f"Source fetch failed from {company}")
         return [], 0
 
     jobs = []
@@ -1247,6 +1268,8 @@ async def fetch_comeet_jobs(client: httpx.AsyncClient, source: dict, notify: boo
             
         # Extract description
         details = item.get("details") or []
+        if not details and isinstance(item.get("custom_fields"), dict):
+            details = item["custom_fields"].get("details") or []
         description_parts = [str(d.get("value", "")) for d in details if isinstance(d, dict) and d.get("value") is not None]
         full_description = " ".join(description_parts)
 
@@ -1256,9 +1279,9 @@ async def fetch_comeet_jobs(client: httpx.AsyncClient, source: dict, notify: boo
             "location": location_text,
             "salary": "Not specified",
             "description": trim_text(html.unescape(full_description)),
-            "job_type": "Full-time",
+            "job_type": item.get("employment_type") or "Full-time",
             "tags": item.get("department", ""),
-            "url": item.get("url_active_page", ""),
+            "url": item.get("url_active_page") or item.get("url_comeet_hosted_page") or "",
             "posted": "Recently",
             "remote": loc_data.get("is_remote", False),
             "source": f"Comeet:{company}",
