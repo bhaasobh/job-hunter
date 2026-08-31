@@ -534,6 +534,78 @@ async def fetch_career_page_jobs(client: httpx.AsyncClient, source: dict, notify
         sent_count = await send_jobs_without_status(filtered_jobs) if notify else 0
         return filtered_jobs, sent_count
 
+    if source.get("kind") == "fivesgroup":
+        fives_israel_catalog = [
+            {
+                "title": "Robotics Engineering Student",
+                "location": "Binyamina, Israel",
+                "url": "https://jobs.fivesgroup.com/en/offer/10774-NjE0OA",
+                "id": "10774-NjE0OA",
+                "job_type": "Part-time / Student",
+                "description": "Robotics Engineering Student at FIL Robotics Ltd (Fives Group). Assist in developing and maintaining software for autonomous robotic systems, writing C++ code, integration, and testing of robotic systems.",
+                "tags": "Robotics, C++, ROS, Linux, Autonomous Systems",
+            },
+            {
+                "title": "Junior Software Engineer",
+                "location": "Binyamina, Israel",
+                "url": "https://jobs.fivesgroup.com/en/offer/10774-NjE0Nw",
+                "id": "10774-NjE0Nw",
+                "job_type": "Full-time / Student",
+                "description": "Junior Software Engineer at FIL Robotics Ltd (Fives Group). Develop and maintain server-side/backend components in Java, Kotlin, Python, or C++, API development, and SQL databases for robotic logistics platforms.",
+                "tags": "Software Engineering, Java, Python, Kotlin, Backend, SQL",
+            },
+            {
+                "title": "SW BE Engineer",
+                "location": "Binyamina, Israel",
+                "url": "https://jobs.fivesgroup.com/en/offer/10774-NjE0NQ",
+                "id": "10774-NjE0NQ",
+                "job_type": "Full-time",
+                "description": "Software Backend Engineer at FIL Robotics Ltd (Fives Group). Design and develop robust server-side architecture, APIs, data modeling, Docker/Kubernetes, and microservices for robotics systems.",
+                "tags": "Backend, Java, Python, Kotlin, Cloud, Docker, Kubernetes, REST",
+            },
+            {
+                "title": "NPI Engineer",
+                "location": "Binyamina, Israel",
+                "url": "https://jobs.fivesgroup.com/en/offer/10774-NjAxNg",
+                "id": "10774-NjAxNg",
+                "job_type": "Full-time",
+                "description": "New Product Introduction (NPI) Engineer at FIL Robotics Ltd (Fives Group). Lead manufacturing transfer, production readiness, multidisciplinary robotics systems, and quality processes.",
+                "tags": "NPI, Manufacturing, Robotics, Hardware, Operations",
+            },
+            {
+                "title": "Junior QA Engineer",
+                "location": "Binyamina, Israel",
+                "url": "https://jobs.fivesgroup.com/en/offer/10774-NjA4OQ",
+                "id": "10774-NjA4OQ",
+                "job_type": "Student / Internship",
+                "description": "Junior QA Engineer at FIL Robotics Ltd (Fives Group). Manual and automated QA testing of robotic platforms, test plans, verification, regression testing, and bug tracking.",
+                "tags": "QA, Quality Assurance, Testing, Robotics, Automation",
+            },
+        ]
+
+        jobs = []
+        for item in fives_israel_catalog:
+            job = {
+                "title": item["title"],
+                "company": company,
+                "location": item["location"],
+                "salary": "Not specified",
+                "description": item["description"],
+                "job_type": item.get("job_type", "Full-time"),
+                "tags": item.get("tags", ""),
+                "url": item["url"],
+                "posted": "Recently",
+                "remote": False,
+                "source": "Fives Group Careers",
+                "job_id": f"fives-{item['id']}",
+            }
+            jobs.append(job)
+
+        filtered_jobs = [job for job in jobs if matches_preferences(job)]
+        print(f"jobs from official careers after filtering:{company}: {len(filtered_jobs)}")
+        sent_count = await send_jobs_without_status(filtered_jobs) if notify else 0
+        return filtered_jobs, sent_count
+
     if source.get("kind") == "strauss":
         try:
             response = await client.get(

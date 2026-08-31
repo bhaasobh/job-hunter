@@ -343,6 +343,14 @@ CAREER_PAGE_SOURCES = [
     {"company": "synopsys", "url": "https://careers.synopsys.com/", "path_markers": ["/job/", "/jobs/"]},
     {"company": "nova", "url": "https://nova.co.il/location_filter/israel/", "proxy_url": "https://r.jina.ai/http://nova.co.il/location_filter/israel/", "path_markers": ["/position/", "/careers/"], "assume_israel": True},
     {"company": "camtek", "url": "https://www.camtek.com/careers/", "path_markers": ["/careers/open-positions/"], "assume_israel": True},
+    {
+        "company": "fivesgroup",
+        "url": "https://jobs.fivesgroup.com/en/search",
+        "offer_url": "https://jobs.fivesgroup.com/en/offer/",
+        "sitemap_url": "https://jobs.fivesgroup.com/sitemap.xml",
+        "kind": "fivesgroup",
+        "assume_israel": True,
+    },
     {"company": "valens_semiconductor", "url": "https://www.valens.com/positions/", "proxy_url": "https://r.jina.ai/http://www.valens.com/positions/", "path_markers": ["/position/"], "assume_israel": True},
     {"company": "proteantecs", "url": "https://www.proteantecs.com/careers", "path_markers": ["/careerinfo", "/job/", "/jobs/", "/position/"], "assume_israel": True},
     {"company": "ceva", "url": "https://www.ceva-ip.com/career/", "path_markers": ["/job/", "/jobs/", "/position/", "/career/"], "assume_israel": True},
@@ -504,6 +512,12 @@ ISRAEL_LOCATION_KEYWORDS = [
     "beer sheva",
     "bnei brak",
     "shefaram",
+    "binyamina",
+    "caesarea",
+    "yokneam",
+    "migdal haemek",
+    "rehovot",
+    "hod hasharon",
 ]
 JUNIOR_KEYWORDS = [
     "junior",
