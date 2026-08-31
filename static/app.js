@@ -232,19 +232,28 @@ function updateScanStatusDisplay(statusMessage, lastScanTime) {
 }
 
 function setScanning(active, message = "") {
-  const scanButtons = ["startScanBtn", "jobsStartScanBtn", "searchButton", "scanAllBtn"];
+  const scanButtons = ["startScanBtn", "searchButton", "scanAllBtn"];
   scanButtons.forEach((id) => {
     const btn = $(id);
     if (!btn) return;
     btn.disabled = active;
     if (id === "searchButton") {
-      btn.textContent = active ? "Searching…" : "Search Jobs Now";
+      btn.innerHTML = active ? '<span class="btn-spinner"></span> Searching…' : "Search Jobs Now";
     } else if (id === "scanAllBtn") {
-      btn.textContent = active ? "Scanning…" : "Scan All";
+      btn.innerHTML = active ? '<span class="btn-spinner"></span> Scanning…' : "Scan All";
     } else {
-      btn.textContent = active ? "Scanning…" : "Start Scan Now";
+      btn.innerHTML = active ? '<span class="btn-spinner"></span> Scanning…' : "Start Scan Now";
     }
   });
+
+  const jobsScanningBtn = $("jobsScanningBtn");
+  if (jobsScanningBtn) {
+    jobsScanningBtn.hidden = !active;
+  }
+  const jobsScanningBtnText = $("jobsScanningBtnText");
+  if (jobsScanningBtnText && message) {
+    jobsScanningBtnText.textContent = message;
+  }
 
   ["scanProgress", "jobsScanProgress"].forEach((id) => {
     const el = $(id);
@@ -273,7 +282,7 @@ function excludedKeywords() {
 
 async function startScan() {
   showPage("jobs");
-  setScanning(true, "Starting job search…");
+  setScanning(true, "Searching for new jobs…");
   try {
     const response = await fetch("/api/search/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ use_ai_analysis: Boolean(state.cv?.cv_id), cv_id: state.cv?.cv_id || "", excluded_keywords: excludedKeywords() }) });
     const data = await response.json();
@@ -299,6 +308,13 @@ async function startScan() {
         const el = $(id);
         if (el) el.textContent = phaseText;
       });
+
+      const jobsScanningBtnText = $("jobsScanningBtnText");
+      if (jobsScanningBtnText) {
+        jobsScanningBtnText.textContent = task.current_source
+          ? `Searching ${task.current_source}… (${countText})`
+          : `Searching for new jobs… (${countText})`;
+      }
 
       await loadJobs();
 
