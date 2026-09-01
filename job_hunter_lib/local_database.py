@@ -177,7 +177,7 @@ def cleanup_database_hygiene(connection: sqlite3.Connection) -> None:
                 "UPDATE jobs SET appearance_count = ?, status = ?, first_seen = ?, last_seen = ? WHERE job_id = ?",
                 (max_count, final_status, earliest_first, latest_last, best_id)
             )
-        connection.execute("UPDATE jobs SET status = 'old' WHERE appearance_count > 1 AND status = 'new'")
+        connection.execute("UPDATE jobs SET status = 'old' WHERE appearance_count > 3 AND status = 'new'")
         connection.execute("UPDATE jobs SET status = 'old' WHERE status = 'new' AND last_seen < datetime('now', '-2 days')")
     except Exception:
         pass
@@ -226,8 +226,8 @@ def save_search_results(jobs: list[dict], run_seen_ids: set | None = None) -> li
                             job[field] = previous_job[field]
                 already_counted_this_run = run_seen_ids is not None and job_id in run_seen_ids
                 count = existing["appearance_count"] if already_counted_this_run else (existing["appearance_count"] + 1)
-                # Explicit user choices always win over automatic aging.
-                status = existing["status"] if existing["status"] in {"saved", "applied"} else ("old" if count > 1 else "new")
+                # Explicit user choices always win over automatic aging. More than 3x seen is old.
+                status = existing["status"] if existing["status"] in {"saved", "applied"} else ("old" if count > 3 else "new")
                 first_seen = existing["first_seen"]
                 connection.execute(
                     """UPDATE jobs

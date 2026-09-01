@@ -62,7 +62,8 @@ function populateSelect(id, values, placeholder) {
 
 function normalizedStatus(job) {
   if (["saved", "applied"].includes(job?.status)) return job.status;
-  if (job?.status === "old") return "old";
+  const count = Number(job?.appearance_count) || 1;
+  if (count > 3) return "old";
   return "new";
 }
 
@@ -77,15 +78,17 @@ function filteredJobs() {
     const haystack = [job.title, job.company, job.location, job.tags, job.description].join(" ").toLowerCase();
     
     let matchesStatus = true;
+    const count = Number(job?.appearance_count) || 1;
     if (status === "new") {
-      // In the New filter, show New jobs (Seen x1) as well as returning active jobs (Seen x2, Seen x3...)
-      matchesStatus = job.status !== "saved" && job.status !== "applied";
+      // In the New filter, show only new jobs until 3x seen (x1, x2, x3)
+      matchesStatus = count <= 3 && job.status !== "saved" && job.status !== "applied";
+    } else if (status === "old") {
+      // More than 3x seen is an old job
+      matchesStatus = (count > 3 || job.status === "old") && job.status !== "saved" && job.status !== "applied";
     } else if (status === "saved") {
       matchesStatus = job.status === "saved";
     } else if (status === "applied") {
       matchesStatus = job.status === "applied";
-    } else if (status === "old") {
-      matchesStatus = job.status === "old" || Number(job.appearance_count) > 1;
     }
 
     return (!keyword || haystack.includes(keyword))

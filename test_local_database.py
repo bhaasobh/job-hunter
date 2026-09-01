@@ -33,22 +33,22 @@ def test_first_scan_sets_appearance_count_one_and_status_new(temp_db):
 def test_subsequent_scans_increment_appearance_count(temp_db):
     job = {"title": "Software Engineer", "company": "Acme Corp", "url": "https://example.com/job1", "job_id": "job1"}
     
-    # 1st scan -> appearance_count = 1
+    # 1st scan -> appearance_count = 1, status = "new"
     first_run = local_database.save_search_results([job])
     assert first_run[0]["appearance_count"] == 1
     assert first_run[0]["status"] == "new"
 
-    # 2nd scan -> appearance_count = 2, status becomes "old"
+    # 2nd scan -> appearance_count = 2, status remains "new" (Seen x2)
     second_run = local_database.save_search_results([job])
     assert second_run[0]["appearance_count"] == 2
-    assert second_run[0]["status"] == "old"
+    assert second_run[0]["status"] == "new"
 
-    # 3rd scan -> appearance_count = 3, status remains "old"
+    # 3rd scan -> appearance_count = 3, status remains "new" (Seen x3)
     third_run = local_database.save_search_results([job])
     assert third_run[0]["appearance_count"] == 3
-    assert third_run[0]["status"] == "old"
+    assert third_run[0]["status"] == "new"
 
-    # 4th scan -> appearance_count = 4, status remains "old"
+    # 4th scan -> appearance_count = 4, status becomes "old" (> 3x seen is old)
     fourth_run = local_database.save_search_results([job])
     assert fourth_run[0]["appearance_count"] == 4
     assert fourth_run[0]["status"] == "old"
