@@ -19,17 +19,20 @@ from docx import Document
 
 from job_hunter_lib.config import OLLAMA_MODEL, OLLAMA_URL, SUPPORTED_COMPANIES, TELEGRAM_BOT_TOKEN
 from job_hunter_lib.jobs import auto_detect_company_ats, extract_cv_keywords, fetch_jobs, test_company_fetcher
-from job_hunter_lib.local_database import (
-    add_custom_company,
-    delete_custom_company,
-    get_all_jobs,
-    get_custom_companies,
-    get_unsent_new_jobs,
-    mark_jobs_sent_to_telegram,
-    save_job_ai_analysis,
-    save_search_results,
-    update_job_status,
-)
+import os
+from job_hunter_lib.config import MONGO_URI
+if MONGO_URI:
+    from job_hunter_lib.database import (
+        add_custom_company, delete_custom_company, get_all_jobs,
+        get_custom_companies, get_unsent_new_jobs, mark_jobs_sent_to_telegram,
+        save_job_ai_analysis, save_search_results, update_job_status,
+    )
+else:
+    from job_hunter_lib.local_database import (
+        add_custom_company, delete_custom_company, get_all_jobs,
+        get_custom_companies, get_unsent_new_jobs, mark_jobs_sent_to_telegram,
+        save_job_ai_analysis, save_search_results, update_job_status,
+    )
 from job_hunter_lib.ollama_matcher import analysis_summary, analyze_job_with_ollama
 from job_hunter_lib.utils import generate_job_id
 

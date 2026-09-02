@@ -11,7 +11,11 @@ from job_hunter_lib.config import (
 )
 from job_hunter_lib.cv_store import read_cv
 from job_hunter_lib.jobs import fetch_jobs
-from job_hunter_lib.local_database import get_all_jobs, mark_jobs_sent_to_telegram, save_search_results
+from job_hunter_lib.config import MONGO_URI
+if MONGO_URI:
+    from job_hunter_lib.database import get_all_jobs, mark_jobs_sent_to_telegram, save_search_results
+else:
+    from job_hunter_lib.local_database import get_all_jobs, mark_jobs_sent_to_telegram, save_search_results
 from job_hunter_lib.ollama_matcher import analysis_summary, analyze_job_with_ollama
 from job_hunter_lib.telegram_client import format_job_message, send_telegram_message
 from job_hunter_lib.utils import generate_job_id

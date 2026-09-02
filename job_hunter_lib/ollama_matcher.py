@@ -7,7 +7,11 @@ import re
 import httpx
 
 from job_hunter_lib.config import OLLAMA_MODEL, OLLAMA_TIMEOUT_SECONDS, OLLAMA_URL
-from job_hunter_lib.local_database import get_ai_job_match, save_ai_job_match
+from job_hunter_lib.config import MONGO_URI
+if MONGO_URI:
+    from job_hunter_lib.database import get_ai_job_match, save_ai_job_match
+else:
+    from job_hunter_lib.local_database import get_ai_job_match, save_ai_job_match
 
 
 MATCH_PROMPT = """You are a technical job matching assistant.

@@ -42,7 +42,11 @@ from job_hunter_lib.fetchers import (
     ACTIVE_EXCLUDED_KEYWORDS,
     TITLE_EXCLUDED_KEYWORDS,
 )
-from job_hunter_lib.local_database import get_custom_companies
+from job_hunter_lib.config import MONGO_URI
+if MONGO_URI:
+    from job_hunter_lib.database import get_custom_companies
+else:
+    from job_hunter_lib.local_database import get_custom_companies
 
 CV_STOPWORDS = {
     "the", "and", "for", "with", "that", "this", "from", "your", "you",
