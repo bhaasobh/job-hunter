@@ -8,10 +8,12 @@ import os
 import re
 import threading
 import uuid
+import smtplib
+from email.message import EmailMessage
 from datetime import datetime, timedelta, timezone
 
-import httpx
 from flask import Flask, jsonify, render_template, request
+import httpx
 from pypdf import PdfReader
 from docx import Document
 
@@ -441,6 +443,44 @@ def send_new_jobs_to_telegram():
         return jsonify({"error": f"Telegram delivery failed: {exc}"}), 502
 
     return jsonify({"count": sent_count, "message": f"Sent {sent_count} new jobs as an HTML file."})
+
+
+@app.post("/api/email/jobs")
+def email_jobs():
+    data = request.get_json(silent=True) or {}
+    recipient = str(data.get("recipient_email") or "").strip()
+    jobs = data.get("jobs", [])
+    
+    if not recipient:
+        return jsonify({"error": "Recipient email is required"}), 400
+    if not jobs:
+        return jsonify({"error": "No jobs to send"}), 400
+        
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+    
+    if not gmail_user or not gmail_password:
+        return jsonify({"error": "Gmail credentials (GMAIL_USER, GMAIL_APP_PASSWORD) not configured in .env."}), 500
+        
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = f"Job Hunter: {len(jobs)} Filtered Jobs"
+        msg["From"] = gmail_user
+        msg["To"] = recipient
+        
+        # Build HTML content
+        html_content = _new_jobs_html(jobs)
+        msg.set_content(f"Found {len(jobs)} jobs. Please view the HTML attachment or enable HTML emails.")
+        msg.add_alternative(html_content, subtype='html')
+        
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(gmail_user, gmail_password)
+            server.send_message(msg)
+            
+        return jsonify({"message": f"Successfully sent {len(jobs)} jobs to {recipient}"})
+    except Exception as exc:
+        app.logger.exception("Failed to send email")
+        return jsonify({"error": f"Failed to send email: {exc}"}), 502
 
 
 def _service_snapshot() -> dict:

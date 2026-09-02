@@ -283,6 +283,9 @@
                   <span>Remote only</span>
                 </label>
               </div>
+              <div class="filter-group email-action">
+                <button id="emailJobsBtn" class="secondary-btn">📧 Email Jobs</button>
+              </div>
             </div>
 
             <!-- Job Results -->
@@ -538,6 +541,30 @@
     <div class="modal-content">
       <button id="closeJobModal" class="modal-close">×</button>
       <div id="jobDetailsContainer" class="job-details"></div>
+    </div>
+  </div>
+
+  <!-- Email Jobs Modal -->
+  <div id="emailModal" class="modal" hidden>
+    <div class="modal-content" style="max-width: 400px; padding: 24px;">
+      <button id="closeEmailModal" class="modal-close">×</button>
+      <h3 style="margin-top: 0;">Email Jobs</h3>
+      <p id="emailModalDesc" style="margin-bottom: 16px;">You are about to email X jobs.</p>
+      
+      <div class="form-group">
+        <label for="emailInput">Recipient Email</label>
+        <input type="email" id="emailInput" class="filter-input" placeholder="your@email.com" style="width: 100%; margin-bottom: 12px;" required>
+      </div>
+      
+      <div class="setting-item" style="justify-content: flex-start; gap: 12px; margin-bottom: 20px;">
+        <label class="toggle">
+          <input id="saveEmailToggle" type="checkbox">
+          <span class="toggle-slider"></span>
+        </label>
+        <span>Save this email for future use</span>
+      </div>
+      
+      <button id="sendEmailBtn" class="primary-btn full-width">Send Jobs</button>
     </div>
   </div>
 

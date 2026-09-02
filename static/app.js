@@ -441,6 +441,60 @@ function clearLocalData() {
   toast("Local profile and settings cleared.");
 }
 
+function emailJobs() {
+  const jobs = filteredJobs();
+  if (!jobs.length) {
+    toast("No jobs currently matching your filters to email.");
+    return;
+  }
+  
+  $("emailModalDesc").textContent = `You are about to email ${jobs.length} jobs.`;
+  const savedEmail = localStorage.getItem("job-hunter-email") || "";
+  $("emailInput").value = savedEmail;
+  $("saveEmailToggle").checked = Boolean(savedEmail);
+  $("emailModal").hidden = false;
+}
+
+async function sendEmailFromModal() {
+  const recipient = $("emailInput").value.trim();
+  if (!recipient) {
+    toast("Please enter a valid email address.", true);
+    return;
+  }
+
+  if ($("saveEmailToggle").checked) {
+    localStorage.setItem("job-hunter-email", recipient);
+  } else {
+    localStorage.removeItem("job-hunter-email");
+  }
+
+  const jobs = filteredJobs();
+  
+  const btn = $("sendEmailBtn");
+  const originalText = btn.innerHTML;
+  btn.innerHTML = `<span class="btn-spinner"></span> Sending…`;
+  btn.disabled = true;
+  
+  try {
+    const response = await fetch("/api/email/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipient_email: recipient, jobs: jobs })
+    });
+    
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Failed to email jobs");
+    
+    toast(`Sent ${jobs.length} jobs to ${recipient}`);
+    $("emailModal").hidden = true;
+  } catch (error) {
+    toast(error.message, true);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
 function openOnboarding() {
   const steps = [
     ["Welcome to Job Hunter AI", "Upload your CV to get more useful job matches."],
@@ -486,8 +540,16 @@ $("clearDataBtn").addEventListener("click", clearLocalData);
 $("showTutorialBtn").addEventListener("click", openOnboarding);
 $("closeJobModal").addEventListener("click", () => { $("jobDetailsModal").hidden = true; });
 $("jobDetailsModal").addEventListener("click", (event) => { if (event.target === $("jobDetailsModal")) $("jobDetailsModal").hidden = true; });
+if ($("closeEmailModal")) {
+  $("closeEmailModal").addEventListener("click", () => { $("emailModal").hidden = true; });
+  $("emailModal").addEventListener("click", (event) => { if (event.target === $("emailModal")) $("emailModal").hidden = true; });
+  $("sendEmailBtn").addEventListener("click", sendEmailFromModal);
+}
 $("getStartedBtn").addEventListener("click", () => showPage("cv-profile"));
 $("skipSetupBtn").addEventListener("click", () => { $("emptyState").hidden = true; });
+if ($("emailJobsBtn")) {
+  $("emailJobsBtn").addEventListener("click", emailJobs);
+}
 
 loadLocalState();
 showPage("dashboard");
