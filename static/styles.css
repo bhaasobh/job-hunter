@@ -64,3 +64,21 @@ button,input,select,textarea { font:inherit; } button { cursor:pointer; } button
   vertical-align: middle;
 }
 
+
+/* Responsive Table (Cards on Mobile/Zoom) */
+@media (max-width: 860px) {
+  .jobs-table { min-width: 0; border: none; background: transparent; }
+  .jobs-table thead { display: none; }
+  .jobs-table, .jobs-table tbody, .jobs-table tr, .jobs-table td { display: block; width: 100%; }
+  .jobs-table tr { margin-bottom: 16px; border: 1px solid var(--border); border-radius: 12px; background: #fff; padding: 14px; box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+  .jobs-table tbody tr:hover { background: #fff; }
+  .jobs-table td { padding: 9px 0; border-bottom: 1px solid #edf2f7; display: flex; align-items: center; justify-content: space-between; text-align: right; }
+  .jobs-table tbody tr:last-child td { border-bottom: 1px solid #edf2f7; }
+  .jobs-table td:last-child { border-bottom: none !important; }
+  .jobs-table td::before { content: attr(data-label); font-weight: 750; color: var(--muted); font-size: 11px; text-transform: uppercase; margin-right: 15px; flex-shrink: 0; }
+  .job-title-cell { flex-direction: column; align-items: flex-start !important; text-align: left !important; }
+  .job-title-cell::before { display: none; } /* Hide label for Title to save space */
+  .job-title-cell strong { font-size: 16px; color: var(--brand); }
+  .job-actions { justify-content: flex-end; width: 100%; padding-top: 10px; gap: 10px; }
+  .job-actions .primary-btn, .job-actions .secondary-btn { flex: 1; text-align: center; justify-content: center; min-height: 40px; font-size: 14px; }
+}

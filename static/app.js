@@ -133,13 +133,13 @@ function jobCard(job) {
   const isNew = count <= 1;
   const indicator = `<span class="seen-indicator ${isNew ? "is-new" : "is-seen"}">${isNew ? "New" : `Seen x${count}`}</span>`;
   return `<tr class="job-row" data-job-id="${escapeHtml(job.job_id)}">
-    <td class="job-title-cell"><strong>${escapeHtml(job.title || "Untitled role")}</strong><span>${escapeHtml(job.job_type || job.source || "Job opening")}</span></td>
-    <td><strong>${escapeHtml(job.company || "Unknown company")}</strong></td>
-    <td>${escapeHtml(job.location || "Location not specified")}</td>
-    <td>${score}</td>
-    <td>${indicator}</td>
-    <td><select class="job-status" aria-label="Application status"><option value="new">New</option><option value="old">Old</option><option value="saved">Saved</option><option value="applied">Applied</option></select></td>
-    <td class="job-actions"><button class="secondary-btn details-job" type="button">Details</button><a class="primary-btn job-link" target="_blank" rel="noopener" href="${escapeHtml(job.url || "#")}">View</a></td>
+    <td class="job-title-cell" data-label="Role"><strong>${escapeHtml(job.title || "Untitled role")}</strong><span>${escapeHtml(job.job_type || job.source || "Job opening")}</span></td>
+    <td data-label="Company"><strong>${escapeHtml(job.company || "Unknown company")}</strong></td>
+    <td data-label="Location">${escapeHtml(job.location || "Location not specified")}</td>
+    <td data-label="Match">${score}</td>
+    <td data-label="Seen">${indicator}</td>
+    <td data-label="Status"><select class="job-status" aria-label="Application status"><option value="new">New</option><option value="old">Old</option><option value="saved">Saved</option><option value="applied">Applied</option></select></td>
+    <td class="job-actions" data-label="Actions"><button class="secondary-btn details-job" type="button">Details</button><a class="primary-btn job-link" target="_blank" rel="noopener" href="${escapeHtml(job.url || "#")}">View</a></td>
   </tr>`;
 }
 
