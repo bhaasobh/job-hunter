@@ -156,3 +156,22 @@ def save_ai_job_match(cv_hash: str, job_hash: str, model: str, analysis: dict) -
         {"$set": {"analysis_json": analysis, "created_at": now}},
         upsert=True
     )
+
+def get_scan_status() -> dict:
+    if not db: return {}
+    doc = db.app_metadata.find_one({"_id": "scan_status"})
+    if doc:
+        doc.pop("_id", None)
+        return doc
+    return {}
+
+def update_scan_status(last_scan: str, message: str, next_scan: str = None) -> None:
+    if not db: return
+    update_data = {"last_scan": last_scan, "message": message}
+    if next_scan:
+        update_data["next_scan"] = next_scan
+    db.app_metadata.update_one(
+        {"_id": "scan_status"},
+        {"$set": update_data},
+        upsert=True
+    )

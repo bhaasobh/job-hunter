@@ -26,12 +26,14 @@ if MONGO_URI:
         add_custom_company, delete_custom_company, get_all_jobs,
         get_custom_companies, get_unsent_new_jobs, mark_jobs_sent_to_telegram,
         save_job_ai_analysis, save_search_results, update_job_status,
+        get_scan_status, update_scan_status,
     )
 else:
     from job_hunter_lib.local_database import (
         add_custom_company, delete_custom_company, get_all_jobs,
         get_custom_companies, get_unsent_new_jobs, mark_jobs_sent_to_telegram,
         save_job_ai_analysis, save_search_results, update_job_status,
+        get_scan_status, update_scan_status,
     )
 from job_hunter_lib.ollama_matcher import analysis_summary, analyze_job_with_ollama
 from job_hunter_lib.utils import generate_job_id
@@ -680,6 +682,11 @@ def test_company():
     })
 
 
+
+
+@app.get("/api/scan/status")
+def get_status():
+    return jsonify(get_scan_status())
 
 if __name__ == "__main__":
     app.run(

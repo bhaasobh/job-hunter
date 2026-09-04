@@ -2,6 +2,12 @@ import asyncio
 import time
 from datetime import datetime, timedelta
 
+from job_hunter_lib.config import MONGO_URI
+if MONGO_URI:
+    from job_hunter_lib.database import update_scan_status
+else:
+    from job_hunter_lib.local_database import update_scan_status
+
 from job_hunter_lib.jobs import fetch_jobs
 from job_hunter_lib.database import get_jobs_by_status, get_unresponded_jobs, mark_job_as_notified
 from job_hunter_lib.telegram_client import send_telegram_message, format_job_message, get_job_keyboard
@@ -54,6 +60,7 @@ async def send_updates():
     else:
         print("No old unresponded jobs found.")
 
+    update_scan_status(datetime.utcnow().isoformat(), "Automated scheduler scan complete.")
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Update Complete. Next run in 4 hours.")
 
 async def main():

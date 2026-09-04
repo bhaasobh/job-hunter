@@ -340,7 +340,7 @@ async function startScan() {
     await loadJobs();
     const now = new Date().toLocaleString();
     const message = `Scan complete. Found ${state.jobs.length} jobs.`;
-    localStorage.setItem(LAST_SCAN_KEY, JSON.stringify({ time: now, message }));
+    // Backend now handles last scan storage
     updateScanStatusDisplay(message, now);
     toast(`Search complete: ${state.jobs.length} jobs available.`);
   } catch (error) {

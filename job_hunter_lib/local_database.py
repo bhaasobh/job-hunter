@@ -351,3 +351,26 @@ def update_job_status(job_id: str, status: str) -> dict | None:
     job = json.loads(row["job_json"])
     job.update(status=row["status"], appearance_count=row["appearance_count"], first_seen=row["first_seen"], last_seen=row["last_seen"], ai_analyzed=bool(row["ai_analyzed"]))
     return job
+
+def get_scan_status() -> dict:
+    with _connect() as connection:
+        # We need to ensure app_metadata exists first
+        connection.execute("CREATE TABLE IF NOT EXISTS app_metadata (key TEXT PRIMARY KEY, value_json TEXT NOT NULL)")
+        row = connection.execute("SELECT value_json FROM app_metadata WHERE key = 'scan_status'").fetchone()
+        if row:
+            return json.loads(row["value_json"])
+    return {}
+
+def update_scan_status(last_scan: str, message: str, next_scan: str = None) -> None:
+    with _connect() as connection:
+        connection.execute("CREATE TABLE IF NOT EXISTS app_metadata (key TEXT PRIMARY KEY, value_json TEXT NOT NULL)")
+        row = connection.execute("SELECT value_json FROM app_metadata WHERE key = 'scan_status'").fetchone()
+        status = json.loads(row["value_json"]) if row else {}
+        status["last_scan"] = last_scan
+        status["message"] = message
+        if next_scan:
+            status["next_scan"] = next_scan
+        connection.execute(
+            "INSERT OR REPLACE INTO app_metadata (key, value_json) VALUES (?, ?)",
+            ("scan_status", json.dumps(status))
+        )
