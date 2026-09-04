@@ -300,7 +300,35 @@ async function startScan() {
   showPage("jobs");
   setScanning(true, "Searching for new jobs…");
   try {
-    const response = await fetch("/api/search/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ use_ai_analysis: Boolean(state.cv?.cv_id), cv_id: state.cv?.cv_id || "", excluded_keywords: excludedKeywords() }) });
+
+    const emailReportCheckbox = $("emailReportCheckbox");
+    const sendEmail = emailReportCheckbox ? emailReportCheckbox.checked : false;
+    let emailAddress = "";
+    
+    if (sendEmail) {
+      emailAddress = localStorage.getItem("job-hunter-email") || prompt("Please enter the email address to receive the report:");
+      if (!emailAddress) {
+        toast("Email report disabled (no email provided).");
+        if (emailReportCheckbox) emailReportCheckbox.checked = false;
+      } else {
+        localStorage.setItem("job-hunter-email", emailAddress);
+      }
+    }
+
+    const payload = {
+      use_ai_analysis: Boolean(state.cv?.cv_id),
+      cv_id: state.cv?.cv_id || "",
+      excluded_keywords: excludedKeywords(),
+      email_report: sendEmail && !!emailAddress,
+      email_address: emailAddress
+    };
+
+    const response = await fetch("/api/search/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Could not start the search");
     while (true) {

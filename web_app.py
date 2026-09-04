@@ -450,44 +450,41 @@ def send_new_jobs_to_telegram():
     return jsonify({"count": sent_count, "message": f"Sent {sent_count} new jobs as an HTML file."})
 
 
+
+def send_jobs_email(recipient: str, jobs: list[dict], subject_prefix="Job Hunter"):
+    import os, smtplib
+    from email.message import EmailMessage
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+    if not gmail_user or not gmail_password:
+        return False, "Gmail credentials not configured."
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = f"{subject_prefix}: {len(jobs)} New Jobs"
+        msg["From"] = gmail_user
+        msg["To"] = recipient
+        html_content = _new_jobs_html(jobs)
+        msg.set_content(f"Found {len(jobs)} jobs. Please view the HTML attachment or enable HTML emails.")
+        msg.add_alternative(html_content, subtype='html')
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(gmail_user, gmail_password)
+            server.send_message(msg)
+        return True, "Email sent"
+    except Exception as exc:
+        return False, str(exc)
+
 @app.post("/api/email/jobs")
 def email_jobs():
     data = request.get_json(silent=True) or {}
     recipient = str(data.get("recipient_email") or "").strip()
     jobs = data.get("jobs", [])
-    
-    if not recipient:
-        return jsonify({"error": "Recipient email is required"}), 400
-    if not jobs:
-        return jsonify({"error": "No jobs to send"}), 400
-        
-    gmail_user = os.getenv("GMAIL_USER")
-    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
-    
-    if not gmail_user or not gmail_password:
-        return jsonify({"error": "Gmail credentials (GMAIL_USER, GMAIL_APP_PASSWORD) not configured in .env."}), 500
-        
-    try:
-        msg = EmailMessage()
-        msg["Subject"] = f"Job Hunter: {len(jobs)} Filtered Jobs"
-        msg["From"] = gmail_user
-        msg["To"] = recipient
-        
-        # Build HTML content
-        html_content = _new_jobs_html(jobs)
-        msg.set_content(f"Found {len(jobs)} jobs. Please view the HTML attachment or enable HTML emails.")
-        msg.add_alternative(html_content, subtype='html')
-        
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-            server.login(gmail_user, gmail_password)
-            server.send_message(msg)
-            
+    if not recipient: return jsonify({"error": "Recipient email is required"}), 400
+    if not jobs: return jsonify({"error": "No jobs to send"}), 400
+    success, msg = send_jobs_email(recipient, jobs)
+    if success:
         return jsonify({"message": f"Successfully sent {len(jobs)} jobs to {recipient}"})
-    except Exception as exc:
-        app.logger.exception("Failed to send email")
-        return jsonify({"error": f"Failed to send email: {exc}"}), 502
-
-
+    else:
+        return jsonify({"error": f"Failed to send email: {msg}"}), 502
 def _service_snapshot() -> dict:
     with service_lock:
         return dict(service_state)
